@@ -351,41 +351,50 @@ document.addEventListener('DOMContentLoaded', () => {
         currentUser.loginType = loginType;
         let userFound = false;
 
-        if (loginType === 'escolas-ibma') {
-            userFound = true;
-            currentUser.role = 'student';
-        } else if (loginEmail === 'edukadoshmda@gmail.com') {
-            currentUser.role = 'admin';
-            currentUser.name = 'Luiz Eduardo';
-            userFound = true;
-        } else {
-            try {
-                const tables = [
-                    { key: 'sebitam-admins', role: 'admin' },
-                    { key: 'sebitam-secretaries', role: 'secretary' },
-                    { key: 'sebitam-teachers', role: 'teacher' },
-                    { key: 'sebitam-students', role: 'student' }
-                ];
-
-                for (const t of tables) {
-                    const data = await dbGet(t.key);
-                    const match = data.find(u => (u.email && u.email.toLowerCase() === loginEmail));
-                    if (match) {
-                        currentUser.role = t.role;
-                        currentUser.name = match.fullName || match.name || loginName;
-                        currentUser.id = match.id;
-                        currentUser.photo = match.photo || null;
-                        userFound = true;
-                        break;
-                    }
+        try {
+            // PRIORIDADE: Quem está cadastrado como admin, professor ou secretário deve fazer login normal
+            const staffTables = [
+                { key: 'sebitam-admins', role: 'admin' },
+                { key: 'sebitam-secretaries', role: 'secretary' },
+                { key: 'sebitam-teachers', role: 'teacher' }
+            ];
+            for (const t of staffTables) {
+                const data = await dbGet(t.key);
+                const match = data.find(u => (u.email && u.email.toLowerCase() === loginEmail));
+                if (match) {
+                    currentUser.role = t.role;
+                    currentUser.name = match.fullName || match.name || loginName;
+                    currentUser.id = match.id;
+                    currentUser.photo = match.photo || null;
+                    currentUser.loginType = 'sebitam'; // Admin/Prof/Secretário sempre usa interface SEBITAM
+                    userFound = true;
+                    break;
                 }
-            } catch (err) {
-                console.error("Erro ao verificar usuário no banco:", err);
             }
+
+            // Se não é staff, verificar alunos (apenas no Login SEBITAM)
+            if (!userFound && loginType !== 'escolas-ibma') {
+                const students = await dbGet('sebitam-students');
+                const match = students.find(u => (u.email && u.email.toLowerCase() === loginEmail));
+                if (match) {
+                    currentUser.role = 'student';
+                    currentUser.name = match.fullName || match.name || loginName;
+                    currentUser.id = match.id;
+                    currentUser.photo = match.photo || null;
+                    userFound = true;
+                }
+            }
+
+            // Login Escolas IBMA: quem não é staff cadastrado entra como aluno
+            if (!userFound && loginType === 'escolas-ibma') {
+                userFound = true;
+                currentUser.role = 'student';
+            }
+        } catch (err) {
+            console.error("Erro ao verificar usuário no banco:", err);
         }
 
         if (!userFound) {
-            // Se não encontrado em nenhuma tabela, define como estudante por padrão para novo cadastro
             currentUser.role = 'student';
         }
 
@@ -396,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
         document.body.classList.toggle('login-escolas-ibma', currentUser.loginType === 'escolas-ibma');
         const overviewLabel = document.getElementById('nav-overview-label');
-        if (overviewLabel) overviewLabel.textContent = currentUser.loginType === 'escolas-ibma' ? 'Cadastro de Professores' : 'Visão Geral';
+        if (overviewLabel) overviewLabel.textContent = currentUser.loginType === 'escolas-ibma' ? 'Cadastro de Professores e Alunos' : 'Visão Geral';
         const brandText = document.getElementById('sidebar-brand-text');
         if (brandText) brandText.textContent = currentUser.loginType === 'escolas-ibma' ? 'Escola IBMA' : 'SEBITAM';
 
@@ -1743,6 +1752,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const countSt = students.length;
 
                 const professoresIbma = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]');
+                const alunosIbma = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]');
                 html = `
                     <div class="welcome-card"><h1 style="color: white !important;">Olá, ${currentUser.name}!</h1></div>
                     ${currentUser.loginType === 'escolas-ibma' ? `
@@ -1751,8 +1761,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             <i data-lucide="graduation-cap" style="width: 28px; height: 28px;"></i>
                         </div>
                         <div>
-                            <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main);">Cadastro de Professores Escola IBMA</h2>
-                            <p style="margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted);">Nome completo, Telefone e E-mail</p>
+                            <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main);">Cadastro de Professores e Alunos</h2>
+                            <p style="margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted);">Professores: Nome, Telefone e E-mail | Alunos: escolha a escola</p>
                         </div>
                     </div>
                     <div class="form-container" style="max-width: 600px; padding: 24px; margin-bottom: 24px; background: white; border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--border);">
@@ -1790,6 +1800,80 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div style="font-size: 0.9rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;"><i data-lucide="mail" style="width: 14px; height: 14px;"></i> ${p.email || '-'}</div>
                             </div>
                             <button class="btn-icon red delete-professor-ibma" data-id="${p.id}" title="Excluir" style="padding: 6px;"><i data-lucide="trash-2" style="width: 14px; height: 14px;"></i></button>
+                        </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="view-header" style="margin-top: 40px; display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+                        <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="users" style="width: 28px; height: 28px;"></i>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main);">Cadastro de Alunos</h2>
+                            <p style="margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted);">Nome completo, Telefone, E-mail e Escola</p>
+                        </div>
+                    </div>
+                    <div class="form-container" style="max-width: 600px; padding: 24px; margin-bottom: 24px; background: white; border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--border);">
+                        <form id="cadastro-alunos-ibma-form">
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label style="font-weight: 700; font-size: 0.9rem;">Nome completo</label>
+                                <div class="input-field" style="position: relative;">
+                                    <i data-lucide="user" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-muted);"></i>
+                                    <input type="text" name="fullName" placeholder="Nome completo" required style="width: 100%; padding: 12px 16px 12px 48px; border-radius: 10px; border: 1.5px solid var(--border);">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label style="font-weight: 700; font-size: 0.9rem;">Telefone</label>
+                                <div class="input-field" style="position: relative;">
+                                    <i data-lucide="phone" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-muted);"></i>
+                                    <input type="tel" name="phone" placeholder="(00) 00000-0000" required style="width: 100%; padding: 12px 16px 12px 48px; border-radius: 10px; border: 1.5px solid var(--border);">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label style="font-weight: 700; font-size: 0.9rem;">E-mail</label>
+                                <div class="input-field" style="position: relative;">
+                                    <i data-lucide="mail" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-muted);"></i>
+                                    <input type="email" name="email" placeholder="email@exemplo.com" required style="width: 100%; padding: 12px 16px 12px 48px; border-radius: 10px; border: 1.5px solid var(--border);">
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label style="font-weight: 700; font-size: 0.9rem;">Escola</label>
+                                <div class="modulo-selector" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                                    <label class="modulo-option" style="cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                                        <input type="radio" name="escola" value="membresia" required style="display: none;">
+                                        <span>Membresia</span>
+                                    </label>
+                                    <label class="modulo-option" style="cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                                        <input type="radio" name="escola" value="discipulado" style="display: none;">
+                                        <span>Discipulado</span>
+                                    </label>
+                                    <label class="modulo-option" style="cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                                        <input type="radio" name="escola" value="batismo" style="display: none;">
+                                        <span>Batismo</span>
+                                    </label>
+                                    <label class="modulo-option" style="cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                                        <input type="radio" name="escola" value="oracao" style="display: none;">
+                                        <span>Oração</span>
+                                    </label>
+                                    <label class="modulo-option" style="cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
+                                        <input type="radio" name="escola" value="maturidade" style="display: none;">
+                                        <span>Maturidade Cristã</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary" style="width: auto; padding: 12px 24px;">Adicionar</button>
+                        </form>
+                    </div>
+                    <div class="staff-contacts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 40px;">
+                        ${alunosIbma.length === 0 ? '<p style="color: var(--text-muted); grid-column: 1/-1;">Nenhum aluno cadastrado.</p>' : alunosIbma.map(a => `
+                        <div class="stat-card" style="height: auto; padding: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <div style="font-weight: 600; font-size: 1rem; color: var(--text-main); margin-bottom: 8px;">${a.fullName || a.nome || '-'}</div>
+                                <div style="font-size: 0.85rem; color: var(--primary); margin-bottom: 4px;">Escola: ${({ membresia: 'Membresia', discipulado: 'Discipulado', batismo: 'Batismo', oracao: 'Oração', maturidade: 'Maturidade Cristã' }[a.escola || a.modulo] || '-')}</div>
+                                <div style="font-size: 0.9rem; color: var(--primary); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;"><i data-lucide="phone" style="width: 14px; height: 14px;"></i> ${a.phone || '-'}</div>
+                                <div style="font-size: 0.9rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;"><i data-lucide="mail" style="width: 14px; height: 14px;"></i> ${a.email || '-'}</div>
+                            </div>
+                            <button class="btn-icon red delete-aluno-ibma" data-id="${a.id}" title="Excluir" style="padding: 6px;"><i data-lucide="trash-2" style="width: 14px; height: 14px;"></i></button>
                         </div>
                         `).join('')}
                     </div>
@@ -1914,7 +1998,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div style="width: 100%;">
                                 ${listAdmins.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum administrador cadastrado.</p>' :
-                        listAdmins.map(a => `
+                            listAdmins.map(a => `
                                         <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                                             <div>
                                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${a.name}</div>
@@ -1928,7 +2012,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>` : ''}
                                         </div>
                                     `).join('')
-                    }                   </div>
+                        }                   </div>
                         </div>
 
                         <!-- Sec Card -->
@@ -1939,7 +2023,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div style="width: 100%;">
                                  ${listSecs.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum secretário cadastrado.</p>' :
-                        listSecs.map(s => `
+                            listSecs.map(s => `
                                         <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                                             <div>
                                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${s.name}</div>
@@ -1953,7 +2037,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>` : ''}
                                         </div>
                                     `).join('')
-                    }                   </div>
+                        }                   </div>
                         </div>
 
                         <!-- Teacher Card -->
@@ -1964,7 +2048,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div style="width: 100%;">
                                 ${listTeachers.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum professor cadastrado.</p>' :
-                        listTeachers.map(t => `
+                            listTeachers.map(t => `
                                         <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                                             <div>
                                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${t.name}</div>
@@ -1978,7 +2062,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>` : ''}
                                         </div>
                                     `).join('')
-                    }
+                        }
                             </div>
                         </div>
                     </div>
@@ -2025,6 +2109,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             await renderView('overview');
                         };
                     }
+                    const formAlunosIbma = document.getElementById('cadastro-alunos-ibma-form');
+                    if (formAlunosIbma) {
+                        formAlunosIbma.onsubmit = async (e) => {
+                            e.preventDefault();
+                            const fd = new FormData(formAlunosIbma);
+                            const obj = { fullName: fd.get('fullName'), phone: fd.get('phone'), email: fd.get('email'), escola: fd.get('escola'), id: Date.now() };
+                            const list = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]');
+                            list.push(obj);
+                            localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
+                            await renderView('overview');
+                        };
+                    }
                     document.querySelectorAll('.delete-professor-ibma').forEach(btn => {
                         btn.onclick = async () => {
                             if (!confirm('Excluir este professor?')) return;
@@ -2033,12 +2129,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             await renderView('overview');
                         };
                     });
+                    document.querySelectorAll('.delete-aluno-ibma').forEach(btn => {
+                        btn.onclick = async () => {
+                            if (!confirm('Excluir este aluno?')) return;
+                            const list = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]').filter(x => String(x.id) !== String(btn.dataset.id));
+                            localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
+                            await renderView('overview');
+                        };
+                    });
                     lucide.createIcons();
                 }, 0);
                 break;
             case 'modulos-ibma': {
                 const modulosIbma = [
-                    { id: 'membresia', nome: 'Membresia', icon: 'user-check', url: 'https://drive.google.com/drive/my-drive' },
+                    { id: 'membresia', nome: 'Membresia', icon: 'user-check', url: 'https://drive.google.com/drive/folders/1YaUTtYRvjIOGILbRJZxlT-nVIA7OWRxe' },
                     { id: 'discipulado', nome: 'Discipulado', icon: 'users', url: null },
                     { id: 'batismo', nome: 'Batismo', icon: 'droplet', url: null },
                     { id: 'oracao', nome: 'Oração', icon: 'heart-handshake', url: null }
@@ -2073,7 +2177,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const escolas = [
                     { id: 'membresia', nome: 'Membresia', icon: 'user-check' },
                     { id: 'discipulos', nome: 'Discípulos', icon: 'users' },
-                    { id: 'batismo', nome: 'Batismo', icon: 'droplet' }
+                    { id: 'batismo', nome: 'Batismo', icon: 'droplet' },
+                    { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star' }
                 ];
                 html = `
                     <div class="matricula-escolas-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
@@ -2135,7 +2240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Escola</th><th>Ações</th></tr></thead>
                             <tbody>
                                 ${matriculas.length === 0 ? '<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">Nenhuma matrícula cadastrada.</td></tr>' :
-                                matriculas.slice().reverse().slice(0, 50).map(m => `
+                        matriculas.slice().reverse().slice(0, 50).map(m => `
                                     <tr data-matricula-id="${m.id}">
                                         <td>${m.fullName || m.nome || '-'}</td>
                                         <td>${m.phone || '-'}</td>
@@ -3229,8 +3334,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${Array.from({ length: 12 }, (_, i) => {
-                    const date = new Date(new Date().getFullYear(), i, 1);
+                                    ${Array.from({ length: 11 }, (_, i) => {
+                    const date = new Date(new Date().getFullYear(), i + 1, 1);
                     const monthName = date.toLocaleString('pt-BR', { month: 'long' });
                     const monthNameCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
                     const year = date.getFullYear();
@@ -3295,40 +3400,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             }
             case 'theology-ai':
+                const chatKey = 'chat-escolas-ibma';
+                const chatList = JSON.parse(localStorage.getItem(chatKey) || '[]');
+                const isTeacher = ['admin', 'teacher'].includes(currentUser.role);
                 html = `
-                        <div class="view-header" >
+                        <div class="view-header">
                             <div style="display: flex; align-items: center; gap: 15px;">
-                                <div class="ai-avatar-large" style="width: 60px; height: 60px; border-radius: 50%; background: rgba(37, 99, 235, 0.1); display: flex; align-items: center; justify-content: center;">
-                                    <i data-lucide="bot" style="width: 32px; height: 32px; color: #2563eb;"></i>
+                                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(37, 99, 235, 0.1); display: flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="message-circle" style="width: 32px; height: 32px; color: #2563eb;"></i>
                                 </div>
                                 <div>
-                                    <h2 style="margin:0;">Antigravity - IA Teológica</h2>
-                                    <p style="margin:0; color:var(--text-muted); font-size:0.9rem;">Especialista em Teologia e Gestão SEBITAM</p>
+                                    <h2 style="margin:0;">Chat - Alunos e Professores</h2>
+                                    <p style="margin:0; color:var(--text-muted); font-size:0.9rem;">Interação entre alunos e professores da Escola IBMA</p>
                                 </div>
                             </div>
-                    </div>
+                        </div>
 
                         <div class="chat-container">
                             <div class="chat-messages" id="chat-messages">
+                                ${chatList.length === 0 ? `
                                 <div class="message ai">
                                     <div class="msg-bubble shadow-sm">
-                                        <h4 style="margin-bottom: 8px; color: var(--primary);">Saudações Teológicas!</h4>
-                                        Sou <strong>Antigravity</strong>, sua inteligência especializada no ecossistema SEBITAM. Analiso doutrinas, organizo currículos e auxilio na exegese bíblica com precisão acadêmica. Como posso iluminar seus estudos ou facilitar a gestão institucional hoje?
+                                        <p style="color: var(--text-muted);">Nenhuma mensagem ainda. Seja o primeiro a iniciar a conversa!</p>
                                     </div>
                                 </div>
+                                ` : chatList.map(m => {
+                    const isOwn = m.author === currentUser.name;
+                    const tipo = m.role === 'teacher' ? 'Professor' : 'Aluno';
+                    return `<div class="message ${isOwn ? 'user' : 'ai'}">
+                                        <div class="msg-bubble shadow-sm">
+                                            <div style="font-size: 0.8rem; color: var(--primary); margin-bottom: 6px;">${m.author} (${tipo})</div>
+                                            <div>${m.text.replace(/\n/g, '<br>')}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">${new Date(m.time).toLocaleString('pt-BR')}</div>
+                                        </div>
+                                    </div>`;
+                }).join('')}
                             </div>
 
                             <div class="chat-input-area">
                                 <div class="chat-input-wrapper" style="border-radius: 20px; align-items: flex-end; padding: 15px 25px; gap: 20px;">
-                                    <input type="file" id="ai-file-input" style="display: none;">
-                                        <button class="chat-action-btn" id="attach-file-btn" title="Anexar Material de Estudo" style="padding-bottom: 15px;"><i data-lucide="paperclip" style="width: 24px; height: 24px;"></i></button>
-                                        <textarea id="chat-input" placeholder="Digite sua dúvida teológica ou cole um texto para análise aqui..." style="flex: 1; border: none; outline: none; font-size: 1.1rem; padding: 10px 0; min-height: 120px; max-height: 400px; resize: none; background: transparent; font-family: inherit; line-height: 1.6;"></textarea>
-                                        <button class="chat-send-btn" id="send-chat-btn" style="margin-bottom: 10px; width: 55px; height: 55px;">
-                                            <i data-lucide="send" style="width: 24px; height: 24px;"></i>
-                                        </button>
-                                </div>
-                                <div id="file-preview" style="margin-top: 15px; font-size: 0.9rem; color: var(--primary); display: none; align-items: center; gap: 8px; padding-left: 10px;">
-                                    <i data-lucide="file-text"></i> <span id="file-name"></span>
+                                    <textarea id="chat-input" placeholder="Digite sua mensagem para alunos e professores..." style="flex: 1; border: none; outline: none; font-size: 1rem; padding: 10px 0; min-height: 80px; max-height: 200px; resize: none; background: transparent; font-family: inherit; line-height: 1.6;"></textarea>
+                                    <button class="chat-send-btn" id="send-chat-btn" style="margin-bottom: 10px; width: 55px; height: 55px;">
+                                        <i data-lucide="send" style="width: 24px; height: 24px;"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -3338,247 +3452,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     const chatMessages = document.getElementById('chat-messages');
                     const chatInput = document.getElementById('chat-input');
                     const sendBtn = document.getElementById('send-chat-btn');
-                    const attachBtn = document.getElementById('attach-file-btn');
-                    const fileInput = document.getElementById('ai-file-input');
-                    const filePreview = document.getElementById('file-preview');
-                    const fileNameSpan = document.getElementById('file-name');
 
-                    attachBtn.onclick = () => fileInput.click();
-                    fileInput.onchange = () => {
-                        if (fileInput.files.length > 0) {
-                            fileNameSpan.textContent = `Arquivo: ${fileInput.files[0].name} `;
-                            filePreview.style.display = 'flex';
-                        }
-                    };
-
-                    const addMessage = (text, type) => {
+                    const addMessage = (text, author, role, time) => {
+                        const list = JSON.parse(localStorage.getItem(chatKey) || '[]');
+                        list.push({ text, author, role, time });
+                        localStorage.setItem(chatKey, JSON.stringify(list));
+                        const isOwn = author === currentUser.name;
+                        const tipo = role === 'teacher' ? 'Professor' : 'Aluno';
                         const msgDiv = document.createElement('div');
-                        msgDiv.className = `message ${type} `;
-                        msgDiv.innerHTML = `<div class="msg-bubble shadow-sm" > ${text}</div> `;
+                        msgDiv.className = `message ${isOwn ? 'user' : 'ai'}`;
+                        msgDiv.innerHTML = `<div class="msg-bubble shadow-sm">
+                            <div style="font-size: 0.8rem; color: var(--primary); margin-bottom: 6px;">${author} (${tipo})</div>
+                            <div>${text.replace(/\n/g, '<br>')}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">${new Date(time).toLocaleString('pt-BR')}</div>
+                        </div>`;
+                        const welcomeMsg = chatMessages.querySelector('.message.ai .msg-bubble');
+                        if (welcomeMsg && welcomeMsg.textContent.includes('Nenhuma mensagem')) welcomeMsg.closest('.message').remove();
                         chatMessages.appendChild(msgDiv);
                         chatMessages.scrollTop = chatMessages.scrollHeight;
-                        lucide.createIcons();
                     };
 
                     const handleSend = () => {
                         const text = chatInput.value.trim();
-                        const hasFile = fileInput.files.length > 0;
-                        if (!text && !hasFile) return;
-
-                        if (hasFile) {
-                            addMessage(`[Anexo: ${fileInput.files[0].name}]<br>${text}`, 'user');
-                            fileInput.value = '';
-                            filePreview.style.display = 'none';
-                        } else {
-                            addMessage(text, 'user');
-                        }
-
+                        if (!text) return;
+                        const role = isTeacher ? 'teacher' : 'student';
+                        addMessage(text, currentUser.name, role, Date.now());
                         chatInput.value = '';
                         chatInput.style.height = 'auto';
-
-                        setTimeout(async () => {
-                            const lowText = text.toLowerCase();
-
-                            // Sistema de InteligÃªncia Baseado em Contexto
-                            const contextMap = [
-                                {
-                                    keys: ['olá', 'oi', 'bom dia', 'boa tarde', 'boa noite', 'paz'],
-                                    resp: "<strong>Paz seja convosco!</strong> Como seu assistente Antigravity, estou operando com capacidade analítica máxima. Posso realizar exegeses, orientar sua jornada acadêmica no SEBITAM ou discutir estratégias ministeriais. Por onde deseja começar?"
-                                },
-                                {
-                                    keys: ['ministério', 'pastoral', 'liderança', 'igreja', 'culto', 'missões', 'prático'],
-                                    resp: `
-                        <div style="margin-bottom: 15px;"><strong>Eixo Prático (Ministério):</strong> Notei seu interesse na área ministerial. No SEBITAM, a teologia deve frutificar em serviço.</div>
-                        <p>Para o desenvolvimento do seu ministério, recomendo focar em:
-                            <ul style="padding-left: 20px; margin: 10px 0;">
-                                <li><strong>Homilética:</strong> A arte da pregação bíblica (Módulo 3).</li>
-                                <li><strong>Teologia Pastoral:</strong> O cuidado com as almas (Módulo 4).</li>
-                                <li><strong>Psicologia Pastoral:</strong> Compreensão do rebanho (Módulo 5).</li>
-                            </ul>
-                            Deseja que eu aprofunde algum destes pilares ministeriais?</p>
-                        `
-                                },
-                                {
-                                    keys: ['acadêmico', 'gestão', 'secretaria', 'coordenação', 'matrícula', 'frequência', 'sistema'],
-                                    resp: `
-                        <div style="margin-bottom: 10px;"><strong>Eixo Acadêmico (Gestão):</strong> Compreendo. Para otimizar a gestão institucional:</div>
-                        <ul style="padding-left: 20px;">
-                            <li><strong>Dados:</strong> O controle de frequência e notas é automatizado via Supabase para evitar erros manuais.</li>
-                            <li><strong>Currículo:</strong> Seguimos uma formação média dividida em 5 módulos sequenciais.</li>
-                            <li><strong>Relatórios:</strong> A aba 'Financeiro' oferece indicadores em tempo real para tomada de decisão.</li>
-                        </ul>
-                        Qual área da coordenação acadêmica você deseja gerenciar agora?
-                        `
-                                },
-                                {
-                                    keys: ['exegese', 'hermenêutica', 'grego', 'hebraico', 'interpretação', 'texto', 'bíblia', 'versículo'],
-                                    resp: "<strong>Análise Exegética:</strong> Esta é uma das minhas especialidades. Posso analisar a transição entre o contexto original e a aplicação contemporânea. Estude o <em>Módulo 2 (Contexto Histórico)</em> para dominar as ferramentas de interpretação do SEBITAM. Quer que eu comente sobre algum texto bíblico específico?"
-                                },
-                                {
-                                    keys: ['módulo', 'disciplina', 'estudar', 'curso', 'aula', 'matéria'],
-                                    resp: "<strong>Organização Curricular:</strong> O SEBITAM organiza o conhecimento de forma progressiva. Se você está iniciando no <strong>Módulo 1 (Fundamentos)</strong>, foque em <em>Bibliologia</em>. Se está concluindo no <strong>Módulo 5</strong>, o foco é <em>Prática</em>. Posso detalhar o conteúdo de qualquer uma das nossas 20 disciplinas."
-                                },
-                                {
-                                    keys: ['histórico', 'nota', 'boletim', 'certificado', 'documento', 'pdf', 'imprimir'],
-                                    resp: "Sua documentação acadêmica é gerada instantaneamente. O administrador deve acessar a aba 'Alunos' e clicar nos ícones de impressora ou documento. O PDF gerado já está configurado com carga horária oficial de 40h por matéria e pronto para emissão."
-                                },
-                                {
-                                    keys: ['teologia', 'doutrina', 'dogma', 'deus', 'jesus', 'espírito', 'fé', 'soteriologia', 'escatologia'],
-                                    resp: "<strong>Análise Doutrinária:</strong> Minha base de dados compreende as principais sistemáticas (Soteriologia, Eclesiologia, Escatologia). No SEBITAM, prezamos pela profundidade bíblica e fidelidade ao texto. Qual destes temas dogmáticos você está pesquisando no momento?"
-                                },
-                                {
-                                    keys: ['pagamento', 'mensalidade', 'financeiro', 'bolsa', 'valor', 'pagar', 'taxa', 'custo'],
-                                    resp: `
-                        <div style="margin-bottom: 10px;"><strong>Gestão Financeira:</strong> O SEBITAM oferece diferentes planos de pagamento:</div>
-                        <ul style="padding-left: 20px;">
-                            <li><strong>Integral:</strong> Mensalidade completa</li>
-                            <li><strong>Meia Mensalidade:</strong> 50% de desconto</li>
-                            <li><strong>Bolsa Integral:</strong> Gratuidade total para casos especiais</li>
-                        </ul>
-                        <p>Os administradores podem acompanhar o status de pagamento na aba 'Financeiro' e atualizar diretamente na lista de 'Alunos'. Para dúvidas sobre seu plano específico, consulte a secretaria.</p>
-                        `
-                                },
-                                {
-                                    keys: ['matrícula', 'inscrição', 'cadastro', 'novo aluno', 'como entrar', 'requisitos', 'documentos'],
-                                    resp: `
-                        <strong>Processo de Matrícula:</strong> Para ingressar no SEBITAM:
-                        <ol style="padding-left: 20px; margin: 10px 0;">
-                            <li>O administrador ou secretário acessa a aba <strong>'Cadastro'</strong></li>
-                            <li>Seleciona o perfil <strong>'Aluno'</strong></li>
-                            <li>Preenche: Nome completo, telefone, e-mail, módulo inicial e plano financeiro</li>
-                            <li>Após salvar, o aluno recebe uma matrícula automática (formato: SEBITAM-XXXX)</li>
-                        </ol>
-                        <p>O sistema já está integrado com Supabase para armazenamento seguro dos dados. Dúvidas sobre documentação? Consulte a secretaria acadêmica.</p>
-                        `
-                                },
-                                {
-                                    keys: ['professor', 'docente', 'ensino', 'quem ensina', 'corpo docente', 'educador'],
-                                    resp: `
-                        <strong>Corpo Docente SEBITAM:</strong> Nossos professores são especialistas em suas áreas teológicas.
-                        <p>Para visualizar a lista completa de professores, acesse a aba <strong>'Visão Geral'</strong> onde você encontrará:</p>
-                        <ul style="padding-left: 20px;">
-                            <li>Nome completo de cada professor</li>
-                            <li>Contato direto (telefone/WhatsApp)</li>
-                            <li>Área de atuação</li>
-                        </ul>
-                        <p>Administradores podem gerenciar o cadastro de professores na aba 'Cadastro', selecionando o perfil 'Professor'. Materiais didáticos estão disponíveis na aba 'Material Didático Professores'.</p>
-                        `
-                                },
-                                {
-                                    keys: ['ajuda', 'help', 'socorro', 'não entendi', 'como usar', 'tutorial', 'suporte'],
-                                    resp: `
-                        <div style="margin-bottom: 15px;"><strong>Central de Ajuda SEBITAM:</strong> Estou aqui para orientar você! Veja o que posso fazer:</div>
-                        <div style="background: #f8fafc; padding: 15px; border-radius: 10px; margin: 10px 0;">
-                            <p style="margin: 5px 0;"><strong>📚 Acadêmico:</strong> Módulos, disciplinas, histórico, certificados</p>
-                            <p style="margin: 5px 0;"><strong>👥 Gestão:</strong> Cadastro de alunos, professores, notas, frequência</p>
-                            <p style="margin: 5px 0;"><strong>💰 Financeiro:</strong> Planos, pagamentos, relatórios</p>
-                            <p style="margin: 5px 0;"><strong>⛪ Teológico:</strong> Doutrinas, exegese, ministério pastoral</p>
-                        </div>
-                        <p><em>Dica: Seja específico! Pergunte sobre 'notas', 'matrícula', 'certificado', 'módulo 3', etc.</em></p>
-                        `
-                                },
-                                {
-                                    keys: ['oração', 'orar', 'intercessão', 'espiritualidade', 'devoção', 'vida espiritual', 'comunhão'],
-                                    resp: `
-                        <strong>Vida Espiritual no SEBITAM:</strong> A formação teológica deve estar enraizada em uma vida de oração e comunhão com Deus.
-                        <p>Enquanto você estuda as doutrinas e disciplinas, lembre-se:</p>
-                        <blockquote style="border-left: 4px solid var(--primary); padding-left: 15px; margin: 15px 0; font-style: italic; color: var(--text-muted);">
-                            "Conhecimento sem devoção infla; devoção sem conhecimento desvia. Busque ambos em equilíbrio." 
-                        </blockquote>
-                        <p>O SEBITAM não é apenas um centro de ensino, mas um espaço de formação integral. Cultive sua espiritualidade enquanto aprofunda seus estudos teológicos.</p>
-                        `
-                                },
-                                {
-                                    keys: ['módulo 1', 'fundamentos', 'bibliologia', 'teontologia', 'novo testamento', 'antigo testamento'],
-                                    resp: "<strong>Módulo 1 - Fundamentos:</strong> Este módulo foca nas bases bíblicas e doutrinárias iniciais. Disciplinas: Bibliologia, Teontologia, Introdução ao N.T e Introdução ao A.T. É a base de todo o curso médio."
-                                },
-                                {
-                                    keys: ['módulo 2', 'contexto histórico', 'geografia bíblica', 'hermenêutica', 'período interbíblico', 'ética cristã'],
-                                    resp: "<strong>Módulo 2 - Contexto Histórico:</strong> Explora o ambiente das Escrituras e ferramentas de interpretação. Disciplinas: Geografia Bíblica, Hermenêutica, Período Interbíblico e Ética Cristã."
-                                },
-                                {
-                                    keys: ['módulo 3', 'doutrinas específicas', 'soteriologia', 'eclesiologia', 'escatologia', 'homilética'],
-                                    resp: "<strong>Módulo 3 - Doutrinas Específicas:</strong> Aprofundamento dogmático e arte da pregação. Disciplinas: Soteriologia (Salvação), Eclesiologia (Igreja), Escatologia (Fim dos Tempos) e Homilética (Pregação)."
-                                },
-                                {
-                                    keys: ['módulo 4', 'teologia aplicada', 'teologia contemporânea', 'teologia pastoral'],
-                                    resp: "<strong>Módulo 4 - Teologia Aplicada:</strong> Foca na conexão da teologia com a realidade atual e o cuidado pastoral. Disciplinas: Teologia Contemporânea, Introdução Teológica Bíblica A.T/N.T e Teologia Pastoral."
-                                },
-                                {
-                                    keys: ['módulo 5', 'prática pastoral', 'exegese bíblica', 'psicologia pastoral'],
-                                    resp: "<strong>Módulo 5 - Prática Pastoral:</strong> Estágio final focado em exegese profunda e cuidado emocional/espiritual. Disciplinas: Exegese Bíblica e Psicologia Pastoral."
-                                },
-                                {
-                                    keys: ['critério', 'aprovação', 'mínimo', 'média', 'passar', 'frequência mínima'],
-                                    resp: "<strong>Critérios de Aprovação SEBITAM:</strong> Para ser aprovado, o aluno deve atingir: 1) Nota mínima de 7.0 em cada disciplina; 2) Frequência mínima de 75% das aulas presenciais/atividades."
-                                },
-                                {
-                                    keys: ['segurança', 'privacidade', 'nuvem', 'supabase', 'dados', 'proteção'],
-                                    resp: "<strong>Segurança de Dados:</strong> O SEBITAM utiliza tecnologia de ponta com o Supabase. Seus dados são criptografados e armazenados em nuvem com backup automático, garantindo que o histórico escolar nunca se perca."
-                                },
-                                {
-                                    keys: ['liderança', 'líder', 'gestor', 'presidência', 'coordenação'],
-                                    resp: "<strong>Liderança Ministerial:</strong> O curso médio capacita líderes para servirem nas igrejas locais com excelência administrativa e equilíbrio teológico. A diretoria supervisiona o progresso de cada vocacionado."
-                                },
-                                {
-                                    keys: ['missão', 'missiologia', 'evangelismo', 'ide', 'povos'],
-                                    resp: "<strong>Missões e Evangelismo:</strong> O 'Ide' de Jesus é o motor do SEBITAM. Nossas disciplinas visam não apenas o conhecimento, mas a expansão do Reino de Deus em toda a Amazônia e além."
-                                },
-                                {
-                                    keys: ['ética', 'comportamento', 'caráter', 'cristão no mundo'],
-                                    resp: "<strong>Ética Cristã:</strong> Estudamos como os valores do Reino de Deus se aplicam às decisões morais contemporâneas, preparando o aluno para ser sal e luz na sociedade."
-                                }
-                            ];
-
-                            // --- INTEGRAÇÃO SEGURA COM SUPABASE EDGE FUNCTIONS ---
-                            async function callGeminiAI(userText) {
-                                if (!supabase) return "Sinto muito, o sistema está em modo offline.";
-
-                                try {
-                                    // Chama a Edge Function 'gemini-chat' configurada no Supabase
-                                    const { data, error } = await supabase.functions.invoke('gemini-chat', {
-                                        body: {
-                                            question: userText,
-                                            userProfile: {
-                                                name: currentUser.name,
-                                                role: currentUser.role
-                                            }
-                                        }
-                                    });
-
-                                    if (error) throw error;
-                                    return data.response || "Não recebi uma resposta válida da IA.";
-                                } catch (err) {
-                                    console.error("Erro ao invocar Edge Function:", err);
-                                    return "Sinto muito, houve uma falha na conexão segura com a IA. Verifique se a Edge Function foi implantada corretamente.";
-                                }
-                            }
-
-                            // Buscar correspondência local (Filtro Rápido)
-                            const match = contextMap.find(c => c.keys.some(k => lowText.includes(k)));
-
-                            if (match) {
-                                addMessage(match.resp, 'ai');
-                            } else {
-                                // Se não houver palavra-chave, chama a IA de Verdade
-                                addMessage("<em>Antigravity está consultando os registros teológicos...</em>", 'ai-loading');
-                                const aiResponse = await callGeminiAI(text);
-
-                                // Remover mensagem de loading e adicionar resposta real
-                                const loadingMsg = document.querySelector('.message.ai-loading');
-                                if (loadingMsg) loadingMsg.remove();
-
-                                addMessage(aiResponse, 'ai');
-                            }
-                        }, 500);
                     };
+
                     sendBtn.onclick = handleSend;
                     chatInput.onkeypress = (e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSend();
-                        }
+                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                     };
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
                     lucide.createIcons();
                 }, 0);
                 break;

@@ -905,6 +905,11 @@ body:not(.login-escolas-ibma) .nav-escolas-ibma-only {
     margin-top: 8px;
 }
 
+.modulo-option:has(input:checked) {
+    border-color: var(--primary) !important;
+    background: rgba(var(--primary-rgb), 0.06);
+}
+
 .radio-label {
     display: flex;
     align-items: center;
@@ -1935,9 +1940,7 @@ body:not(.login-escolas-ibma) .nav-escolas-ibma-only {
     box-shadow: var(--shadow-lg);
     border: 1px solid var(--border);
     overflow: hidden;
-    margin: 0 auto;
-    max-width: 1200px;
-    /* Limitando largura para leitura confortável */
+    width: 100%;
 }
 
 .chat-messages {
@@ -2003,6 +2006,8 @@ body:not(.login-escolas-ibma) .nav-escolas-ibma-only {
     border-radius: 30px;
     border: 1px solid var(--border);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .chat-input-wrapper input {
