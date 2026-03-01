@@ -2117,21 +2117,3 @@ body.user-role-student .delete-st-class {
         font-size: 1.4rem !important;
     }
 }
-
-/* Chat em grupo (estilo WhatsApp) */
-.chat-grupo-tab {
-    transition: all 0.2s ease;
-}
-
-.chat-grupo-tab:hover {
-    opacity: 0.9;
-}
-
-.chat-grupo-tab.active {
-    cursor: default;
-}
-
-.chat-grupo-msg.own .message-text,
-.chat-grupo-msg.own div[style*="background"] {
-    border-bottom-right-radius: 4px;
-}
