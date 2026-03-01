@@ -125,6 +125,101 @@ document.addEventListener('DOMContentLoaded', () => {
         return item;
     }
 
+    // --- CHAT EM GRUPO (estilo WhatsApp) ---
+    const CHAT_STORAGE_GRUPOS = 'chat-grupos';
+    const CHAT_STORAGE_MSGS = 'chat-mensagens';
+
+    async function chatGetGrupos(ambiente) {
+        if (supabase) {
+            try {
+                const { data, error } = await supabase.from('chat_grupos').select('*').eq('ambiente', ambiente).order('id');
+                if (error) throw error;
+                if (data && data.length > 0) return data;
+            } catch (e) {
+                if (isNetworkError(e)) console.warn('Chat: Supabase indisponível, usando localStorage.');
+            }
+        }
+        let list = JSON.parse(localStorage.getItem(CHAT_STORAGE_GRUPOS) || '[]');
+        list = list.filter(g => g.ambiente === ambiente);
+        if (list.length === 0) {
+            const novo = { id: Date.now(), ambiente, nome: ambiente === 'sebitam' ? 'Chat SEBITAM' : 'Chat Escolas IBMA', created_at: new Date().toISOString() };
+            list = [novo];
+            const all = JSON.parse(localStorage.getItem(CHAT_STORAGE_GRUPOS) || '[]');
+            all.push(novo);
+            localStorage.setItem(CHAT_STORAGE_GRUPOS, JSON.stringify(all));
+        }
+        return list;
+    }
+
+    async function chatGetMensagens(grupoId) {
+        if (supabase) {
+            try {
+                const { data, error } = await supabase.from('chat_mensagens').select('*').eq('grupo_id', grupoId).order('created_at');
+                if (error) throw error;
+                return data || [];
+            } catch (e) {
+                if (isNetworkError(e)) console.warn('Chat: Supabase indisponível, usando localStorage.');
+            }
+        }
+        const list = JSON.parse(localStorage.getItem(CHAT_STORAGE_MSGS) || '[]');
+        return list.filter(m => String(m.grupo_id) === String(grupoId)).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    }
+
+    let chatRealtimeChannel = null;
+    let chatPollIntervalId = null;
+
+    function chatCleanupRealtime() {
+        if (chatRealtimeChannel && supabase) {
+            try { supabase.removeChannel(chatRealtimeChannel); } catch (_) {}
+            chatRealtimeChannel = null;
+        }
+        if (chatPollIntervalId) {
+            clearInterval(chatPollIntervalId);
+            chatPollIntervalId = null;
+        }
+    }
+
+    async function chatRefreshMensagensDom(container, grupoId) {
+        if (!container || !grupoId) return;
+        const mensagens = await chatGetMensagens(grupoId);
+        const html = mensagens.length === 0
+            ? '<p style="color: var(--text-muted); text-align: center; margin: auto;">Nenhuma mensagem ainda. Seja o primeiro a enviar!</p>'
+            : mensagens.map(m => {
+                const eu = (m.remetente_email || '').toLowerCase() === (currentUser.email || '').toLowerCase();
+                return `<div class="chat-grupo-msg ${eu ? 'own' : ''}" style="max-width: 80%; align-self: ${eu ? 'flex-end' : 'flex-start'}; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">${(m.remetente_nome || 'Desconhecido')} ${eu ? '(você)' : ''}</span>
+                    <div style="padding: 12px 16px; border-radius: 16px; background: ${eu ? 'var(--primary)' : 'white'}; color: ${eu ? 'white' : 'var(--text-main)'}; border: 1px solid var(--border); box-shadow: var(--shadow);">${(m.texto || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">${m.created_at ? new Date(m.created_at).toLocaleString('pt-BR') : ''}</span>
+                </div>`;
+            }).join('');
+        container.innerHTML = html;
+        container.scrollTop = container.scrollHeight;
+    }
+
+    async function chatAddMensagem(grupoId, texto) {
+        const msg = {
+            grupo_id: Number(grupoId),
+            remetente_email: currentUser.email,
+            remetente_nome: currentUser.name,
+            texto: String(texto).trim(),
+            created_at: new Date().toISOString()
+        };
+        if (supabase) {
+            try {
+                const { data, error } = await supabase.from('chat_mensagens').insert([msg]).select();
+                if (error) throw error;
+                return data && data[0] ? data[0] : msg;
+            } catch (e) {
+                if (isNetworkError(e)) console.warn('Chat: Supabase indisponível, salvando localmente.');
+            }
+        }
+        msg.id = Date.now();
+        const list = JSON.parse(localStorage.getItem(CHAT_STORAGE_MSGS) || '[]');
+        list.push(msg);
+        localStorage.setItem(CHAT_STORAGE_MSGS, JSON.stringify(list));
+        return msg;
+    }
+
     // Detecta erro de rede (Supabase inacessível)
     function isNetworkError(e) {
         const msg = (e && e.message) || '';
@@ -1706,6 +1801,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function renderView(view, data = null, addToHistory = true) {
+        if (currentView === 'chat-grupo' && view !== 'chat-grupo') chatCleanupRealtime();
         // Handle History
         if (addToHistory && currentView && currentView !== 'login' && currentView !== view) {
             viewHistory.push({ view: currentView, data: currentData });
@@ -2066,6 +2162,93 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
                 setTimeout(() => lucide.createIcons(), 0);
+                break;
+            }
+            case 'chat-grupo': {
+                const ambiente = currentUser.loginType;
+                const grupos = await chatGetGrupos(ambiente);
+                const grupoAtual = data?.grupoId ? grupos.find(g => String(g.id) === String(data.grupoId)) : grupos[0];
+                const grupoId = grupoAtual ? grupoAtual.id : grupos[0]?.id;
+                const mensagens = grupoId ? await chatGetMensagens(grupoId) : [];
+                const tituloChat = currentUser.loginType === 'escolas-ibma' ? 'Chat Escolas IBMA' : 'Chat SEBITAM';
+                html = `
+                    <div class="view-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                        <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="message-circle" style="width: 30px; height: 30px;"></i>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--text-main);">${tituloChat}</h2>
+                            <p style="margin: 6px 0 0; font-size: 0.95rem; color: var(--text-muted);">Todos podem enviar e ver mensagens no grupo</p>
+                        </div>
+                    </div>
+                    ${grupos.length > 1 ? `
+                    <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${grupos.map(g => `
+                            <a href="#" class="chat-grupo-tab ${String(g.id) === String(grupoId) ? 'active' : ''}" data-grupo-id="${g.id}" style="padding: 10px 20px; border-radius: 12px; background: ${String(g.id) === String(grupoId) ? 'var(--primary)' : 'var(--bg-card)'}; color: ${String(g.id) === String(grupoId) ? 'white' : 'var(--text-main)'}; border: 1px solid var(--border); text-decoration: none; font-weight: 600; font-size: 0.9rem;">${g.nome}</a>
+                        `).join('')}
+                    </div>
+                    ` : ''}
+                    <div class="chat-grupo-container" style="background: var(--bg-card); border-radius: 24px; border: 1px solid var(--border); height: 500px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow);">
+                        <div class="chat-grupo-mensagens" id="chat-grupo-mensagens" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 16px 16px;">
+                            ${mensagens.length === 0 ? '<p style="color: var(--text-muted); text-align: center; margin: auto;">Nenhuma mensagem ainda. Seja o primeiro a enviar!</p>' : mensagens.map(m => {
+                                const eu = (m.remetente_email || '').toLowerCase() === (currentUser.email || '').toLowerCase();
+                                return `<div class="chat-grupo-msg ${eu ? 'own' : ''}" style="max-width: 80%; align-self: ${eu ? 'flex-end' : 'flex-start'}; display: flex; flex-direction: column; gap: 4px;">
+                                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">${(m.remetente_nome || 'Desconhecido')} ${eu ? '(você)' : ''}</span>
+                                    <div style="padding: 12px 16px; border-radius: 16px; background: ${eu ? 'var(--primary)' : 'white'}; color: ${eu ? 'white' : 'var(--text-main)'}; border: 1px solid var(--border); box-shadow: var(--shadow);">${(m.texto || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
+                                    <span style="font-size: 0.7rem; color: var(--text-muted);">${m.created_at ? new Date(m.created_at).toLocaleString('pt-BR') : ''}</span>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                        <form id="chat-grupo-form" class="chat-grupo-input" style="padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; background: var(--bg-main);">
+                            <input type="hidden" name="grupo_id" value="${grupoId}">
+                            <input type="text" name="texto" placeholder="Digite sua mensagem..." required style="flex: 1; padding: 14px 20px; border-radius: 50px; border: 1px solid var(--border); outline: none; font-size: 1rem;">
+                            <button type="submit" class="btn-primary" style="padding: 14px 24px; border-radius: 50px;"><i data-lucide="send" style="width: 18px; height: 18px;"></i> Enviar</button>
+                        </form>
+                    </div>
+                `;
+                setTimeout(() => {
+                    lucide.createIcons();
+                    const form = document.getElementById('chat-grupo-form');
+                    const container = document.getElementById('chat-grupo-mensagens');
+                    if (form) {
+                        form.onsubmit = async (e) => {
+                            e.preventDefault();
+                            const fd = new FormData(form);
+                            const texto = fd.get('texto')?.toString()?.trim();
+                            const gId = fd.get('grupo_id');
+                            if (!texto || !gId) return;
+                            try {
+                                await chatAddMensagem(gId, texto);
+                                form.querySelector('[name="texto"]').value = '';
+                                chatCleanupRealtime();
+                                await renderView('chat-grupo', { grupoId: gId }, false);
+                            } catch (err) {
+                                alert('Erro ao enviar: ' + (err.message || err));
+                            }
+                        };
+                    }
+                    document.querySelectorAll('.chat-grupo-tab').forEach(tab => {
+                        tab.onclick = (e) => { e.preventDefault(); chatCleanupRealtime(); renderView('chat-grupo', { grupoId: tab.dataset.grupoId }, false); };
+                    });
+                    if (container) container.scrollTop = container.scrollHeight;
+
+                    chatCleanupRealtime();
+                    if (grupoId && container) {
+                        if (supabase) {
+                            try {
+                                chatRealtimeChannel = supabase
+                                    .channel('chat-grupo-' + grupoId)
+                                    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_mensagens', filter: 'grupo_id=eq.' + grupoId }, () => {
+                                        chatRefreshMensagensDom(container, grupoId);
+                                    })
+                                    .subscribe();
+                            } catch (e) { console.warn('Chat Realtime nao disponivel:', e); chatRealtimeChannel = null; }
+                        }
+                        if (!chatRealtimeChannel) {
+                            chatPollIntervalId = setInterval(() => chatRefreshMensagensDom(container, grupoId), 4000);
+                        }
+                    }
+                }, 0);
                 break;
             }
             case 'matricula-escolas': {
