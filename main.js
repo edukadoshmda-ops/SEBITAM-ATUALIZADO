@@ -381,6 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentUser.name = match.fullName || match.name || loginName;
                     currentUser.id = match.id;
                     currentUser.photo = match.photo || null;
+                    currentUser.grade = match.grade || 1;
                     userFound = true;
                 }
             }
@@ -409,6 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!userFound) {
             currentUser.role = 'student';
+            currentUser.grade = 1;
         }
 
         refreshUIPermissions(currentUser.role);
@@ -3795,9 +3797,15 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'theology-ai':
             case 'chat-sebitam':
                 const isSebitam = view === 'chat-sebitam';
-                const chatKey = isSebitam ? 'chat-sebitam' : 'chat-escolas-ibma';
-                const chatList = JSON.parse(localStorage.getItem(chatKey) || '[]');
                 const isTeacher = ['admin', 'teacher'].includes(currentUser.role);
+
+                let selectedTurma = window.currentChatTurma || 1;
+                if (!isTeacher && currentUser.grade) {
+                    selectedTurma = currentUser.grade;
+                }
+
+                const chatKey = isSebitam ? `chat-sebitam-turma-${selectedTurma}` : 'chat-escolas-ibma';
+                const chatList = JSON.parse(localStorage.getItem(chatKey) || '[]');
 
                 const deleteChatMessage = (index) => {
                     const list = JSON.parse(localStorage.getItem(chatKey) || '[]');
@@ -3809,12 +3817,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 html = `
                         <div class="view-header">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <div style="width: 60px; height: 60px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center;">
+                            <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
+                                <div style="width: 60px; height: 60px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                                     <i data-lucide="message-circle" style="width: 32px; height: 32px; color: #475569;"></i>
                                 </div>
-                                <div>
-                                    <h2 style="margin:0;">Chat - ${isSebitam ? 'SEBITAM' : 'Escolas IBMA'}</h2>
+                                <div style="flex: 1;">
+                                    <h2 style="margin:0; display: flex; align-items: center; gap: 10px;">
+                                        Chat - ${isSebitam ? 'SEBITAM' : 'Escolas IBMA'}
+                                        ${isSebitam && isTeacher ? `
+                                            <select id="chat-turma-selector" style="margin-left:auto; padding: 5px 10px; border-radius: 5px; border: 1px solid #cbd5e1; font-size: 0.95rem; background: white; color: var(--text-main); font-family: inherit; cursor: pointer; max-width: 150px;">
+                                                <option value="1" ${selectedTurma == 1 ? 'selected' : ''}>Turma 1</option>
+                                                <option value="2" ${selectedTurma == 2 ? 'selected' : ''}>Turma 2</option>
+                                                <option value="3" ${selectedTurma == 3 ? 'selected' : ''}>Turma 3</option>
+                                                <option value="4" ${selectedTurma == 4 ? 'selected' : ''}>Turma 4</option>
+                                                <option value="5" ${selectedTurma == 5 ? 'selected' : ''}>Turma 5</option>
+                                            </select>
+                                        ` : ''}
+                                        ${isSebitam && !isTeacher ? `
+                                            <span style="margin-left:auto; font-size: 0.95rem; color: var(--text-muted); font-weight: normal; background: #e2e8f0; padding: 4px 10px; border-radius: 12px;">Turma ${selectedTurma}</span>
+                                        ` : ''}
+                                    </h2>
                                     <p style="margin:0; color:var(--text-muted); font-size:0.9rem;">Interação entre alunos e professores ${isSebitam ? 'do SEBITAM' : 'da Escola IBMA'}</p>
                                 </div>
                             </div>
@@ -3877,6 +3899,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     chatInput.onkeypress = (e) => {
                         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                     };
+
+                    if (isSebitam && isTeacher) {
+                        const selector = document.getElementById('chat-turma-selector');
+                        if (selector) {
+                            selector.addEventListener('change', (e) => {
+                                window.currentChatTurma = e.target.value;
+                                renderView(view);
+                            });
+                        }
+                    }
+
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                     lucide.createIcons();
                 }, 0);
