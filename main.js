@@ -3792,9 +3792,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             }
             case 'theology-ai':
-                const chatKey = 'chat-escolas-ibma';
+            case 'theology-ai':
+            case 'chat-sebitam':
+                const isSebitam = view === 'chat-sebitam';
+                const chatKey = isSebitam ? 'chat-sebitam' : 'chat-escolas-ibma';
                 const chatList = JSON.parse(localStorage.getItem(chatKey) || '[]');
                 const isTeacher = ['admin', 'teacher'].includes(currentUser.role);
+
+                const deleteChatMessage = (index) => {
+                    const list = JSON.parse(localStorage.getItem(chatKey) || '[]');
+                    list.splice(index, 1);
+                    localStorage.setItem(chatKey, JSON.stringify(list));
+                    renderView(view);
+                };
+                window.deleteChatMessage = deleteChatMessage;
+
                 html = `
                         <div class="view-header">
                             <div style="display: flex; align-items: center; gap: 15px;">
@@ -3802,8 +3814,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <i data-lucide="message-circle" style="width: 32px; height: 32px; color: var(--primary);"></i>
                                 </div>
                                 <div>
-                                    <h2 style="margin:0;">Chat - Alunos e Professores</h2>
-                                    <p style="margin:0; color:var(--text-muted); font-size:0.9rem;">Interação entre alunos e professores da Escola IBMA</p>
+                                    <h2 style="margin:0;">Chat - ${isSebitam ? 'SEBITAM' : 'Escolas IBMA'}</h2>
+                                    <p style="margin:0; color:var(--text-muted); font-size:0.9rem;">Interação entre alunos e professores ${isSebitam ? 'do SEBITAM' : 'da Escola IBMA'}</p>
                                 </div>
                             </div>
                         </div>
@@ -3816,12 +3828,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <p style="color: var(--text-muted);">Nenhuma mensagem ainda. Seja o primeiro a iniciar a conversa!</p>
                                     </div>
                                 </div>
-                                ` : chatList.map(m => {
+                                ` : chatList.map((m, idx) => {
                     const isOwn = m.author === currentUser.name;
                     const tipo = m.role === 'teacher' ? 'Professor' : 'Aluno';
                     return `<div class="message ${isOwn ? 'user' : 'ai'}">
-                                        <div class="msg-bubble shadow-sm">
-                                            <div style="font-size: 0.8rem; color: #64748b; font-weight: 700; margin-bottom: 6px;">${m.author} (${tipo})</div>
+                                        <div class="msg-bubble shadow-sm" style="position: relative;">
+                                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                                                <div style="font-size: 0.8rem; color: #64748b; font-weight: 700; margin-bottom: 6px;">${m.author} (${tipo})</div>
+                                                <button onclick="deleteChatMessage(${idx})" style="background:none; border:none; padding:0; cursor:pointer; color: #ef4444; opacity: 0.6;" title="Excluir mensagem">
+                                                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                                                </button>
+                                            </div>
                                             <div>${m.text.replace(/\n/g, '<br>')}</div>
                                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">${new Date(m.time).toLocaleString('pt-BR')}</div>
                                         </div>
@@ -3831,7 +3848,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             <div class="chat-input-area">
                                 <div class="chat-input-wrapper" style="border-radius: 20px; align-items: flex-end; padding: 15px 25px; gap: 20px;">
-                                    <textarea id="chat-input" placeholder="Digite sua mensagem para alunos e professores..." style="flex: 1; border: none; outline: none; font-size: 1rem; padding: 10px 0; min-height: 80px; max-height: 200px; resize: none; background: transparent; font-family: inherit; line-height: 1.6;"></textarea>
+                                    <textarea id="chat-input" placeholder="Digite sua mensagem..." style="flex: 1; border: none; outline: none; font-size: 1rem; padding: 10px 0; min-height: 80px; max-height: 200px; resize: none; background: transparent; font-family: inherit; line-height: 1.6;"></textarea>
                                     <button class="chat-send-btn" id="send-chat-btn" style="margin-bottom: 10px; width: 55px; height: 55px;">
                                         <i data-lucide="send" style="width: 24px; height: 24px;"></i>
                                     </button>
@@ -3845,32 +3862,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const chatInput = document.getElementById('chat-input');
                     const sendBtn = document.getElementById('send-chat-btn');
 
-                    const addMessage = (text, author, role, time) => {
-                        const list = JSON.parse(localStorage.getItem(chatKey) || '[]');
-                        list.push({ text, author, role, time });
-                        localStorage.setItem(chatKey, JSON.stringify(list));
-                        const isOwn = author === currentUser.name;
-                        const tipo = role === 'teacher' ? 'Professor' : 'Aluno';
-                        const msgDiv = document.createElement('div');
-                        msgDiv.className = `message ${isOwn ? 'user' : 'ai'}`;
-                        msgDiv.innerHTML = `<div class="msg-bubble shadow-sm">
-                            <div style="font-size: 0.8rem; color: #64748b; font-weight: 700; margin-bottom: 6px;">${author} (${tipo})</div>
-                            <div>${text.replace(/\n/g, '<br>')}</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">${new Date(time).toLocaleString('pt-BR')}</div>
-                        </div>`;
-                        const welcomeMsg = chatMessages.querySelector('.message.ai .msg-bubble');
-                        if (welcomeMsg && welcomeMsg.textContent.includes('Nenhuma mensagem')) welcomeMsg.closest('.message').remove();
-                        chatMessages.appendChild(msgDiv);
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                    };
-
                     const handleSend = () => {
                         const text = chatInput.value.trim();
                         if (!text) return;
                         const role = isTeacher ? 'teacher' : 'student';
-                        addMessage(text, currentUser.name, role, Date.now());
-                        chatInput.value = '';
-                        chatInput.style.height = 'auto';
+
+                        const list = JSON.parse(localStorage.getItem(chatKey) || '[]');
+                        list.push({ text, author: currentUser.name, role, time: Date.now() });
+                        localStorage.setItem(chatKey, JSON.stringify(list));
+                        renderView(view);
                     };
 
                     sendBtn.onclick = handleSend;
