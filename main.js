@@ -3810,8 +3810,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 html = `
                         <div class="view-header">
                             <div style="display: flex; align-items: center; gap: 15px;">
-                                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(var(--primary-rgb), 0.1); display: flex; align-items: center; justify-content: center;">
-                                    <i data-lucide="message-circle" style="width: 32px; height: 32px; color: var(--primary);"></i>
+                                <div style="width: 60px; height: 60px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="message-circle" style="width: 32px; height: 32px; color: #475569;"></i>
                                 </div>
                                 <div>
                                     <h2 style="margin:0;">Chat - ${isSebitam ? 'SEBITAM' : 'Escolas IBMA'}</h2>
