@@ -3799,8 +3799,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 html = `
                         <div class="view-header">
                             <div style="display: flex; align-items: center; gap: 15px;">
-                                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(37, 99, 235, 0.1); display: flex; align-items: center; justify-content: center;">
-                                    <i data-lucide="message-circle" style="width: 32px; height: 32px; color: #2563eb;"></i>
+                                <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(var(--primary-rgb), 0.1); display: flex; align-items: center; justify-content: center;">
+                                    <i data-lucide="message-circle" style="width: 32px; height: 32px; color: var(--primary);"></i>
                                 </div>
                                 <div>
                                     <h2 style="margin:0;">Chat - Alunos e Professores</h2>
@@ -3822,7 +3822,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const tipo = m.role === 'teacher' ? 'Professor' : 'Aluno';
                     return `<div class="message ${isOwn ? 'user' : 'ai'}">
                                         <div class="msg-bubble shadow-sm">
-                                            <div style="font-size: 0.8rem; color: var(--primary); margin-bottom: 6px;">${m.author} (${tipo})</div>
+                                            <div style="font-size: 0.8rem; color: #64748b; font-weight: 700; margin-bottom: 6px;">${m.author} (${tipo})</div>
                                             <div>${m.text.replace(/\n/g, '<br>')}</div>
                                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">${new Date(m.time).toLocaleString('pt-BR')}</div>
                                         </div>
@@ -3855,7 +3855,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const msgDiv = document.createElement('div');
                         msgDiv.className = `message ${isOwn ? 'user' : 'ai'}`;
                         msgDiv.innerHTML = `<div class="msg-bubble shadow-sm">
-                            <div style="font-size: 0.8rem; color: var(--primary); margin-bottom: 6px;">${author} (${tipo})</div>
+                            <div style="font-size: 0.8rem; color: #64748b; font-weight: 700; margin-bottom: 6px;">${author} (${tipo})</div>
                             <div>${text.replace(/\n/g, '<br>')}</div>
                             <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">${new Date(time).toLocaleString('pt-BR')}</div>
                         </div>`;

@@ -1986,7 +1986,7 @@ body:not(.login-escolas-ibma) .nav-escolas-ibma-only {
 }
 
 .user .msg-bubble {
-    background: var(--primary);
+    background: #334155;
     color: white;
     border-bottom-right-radius: 5px;
 }
