@@ -3591,7 +3591,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="stat-icon" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;"><i data-lucide="dollar-sign"></i></div>
                                 <div>
                                     <div class="stat-value" style="font-size: 1.5rem;">R$ ${totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                                    <div class="stat-value" style="font-size: 1.5rem;">R$ ${totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                                     <div class="stat-label">Total Recebido (${displayMonthCapitalized})</div>
                                 </div>
                             </div>

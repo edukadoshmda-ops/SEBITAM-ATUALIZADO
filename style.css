@@ -1476,7 +1476,7 @@ body:not(.login-escolas-ibma) .nav-escolas-ibma-only {
 }
 
 .user-message .message-text {
-    background: var(--primary);
+    background: #334155;
     color: white;
     border-bottom-right-radius: 4px;
 }
