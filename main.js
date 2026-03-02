@@ -385,6 +385,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // Login Escolas IBMA: verificar professores cadastrados
+            if (!userFound && loginType === 'escolas-ibma') {
+                const profsIbma = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]');
+                const matchProf = profsIbma.find(p => p.email && p.email.toLowerCase() === loginEmail);
+                if (matchProf) {
+                    currentUser.role = 'teacher';
+                    currentUser.name = matchProf.fullName || matchProf.name || loginName;
+                    currentUser.id = matchProf.id;
+                    currentUser.loginType = 'escolas-ibma';
+                    userFound = true;
+                }
+            }
+
             // Login Escolas IBMA: quem não é staff cadastrado entra como aluno
             if (!userFound && loginType === 'escolas-ibma') {
                 userFound = true;
@@ -405,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
         document.body.classList.toggle('login-escolas-ibma', currentUser.loginType === 'escolas-ibma');
         const overviewLabel = document.getElementById('nav-overview-label');
-        if (overviewLabel) overviewLabel.textContent = currentUser.loginType === 'escolas-ibma' ? 'Cadastro de Professores e Alunos' : 'Visão Geral';
+        if (overviewLabel) overviewLabel.textContent = currentUser.loginType === 'escolas-ibma' ? 'Cadastro de Professores' : 'Visão Geral';
         const brandText = document.getElementById('sidebar-brand-text');
         if (brandText) brandText.textContent = currentUser.loginType === 'escolas-ibma' ? 'Escola IBMA' : 'SEBITAM';
 
@@ -1761,8 +1774,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             <i data-lucide="graduation-cap" style="width: 28px; height: 28px;"></i>
                         </div>
                         <div>
-                            <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main);">Cadastro de Professores e Alunos</h2>
-                            <p style="margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted);">Professores: Nome, Telefone e E-mail | Alunos: escolha a escola</p>
+                            <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main);">Cadastro de Professores</h2>
+                            <p style="margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted);">Cadastre professores com Nome, Telefone e E-mail</p>
                         </div>
                     </div>
                     <div class="form-container" style="max-width: 600px; padding: 24px; margin-bottom: 24px; background: white; border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--border);">
@@ -1790,6 +1803,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <button type="submit" class="btn-primary" style="width: auto; padding: 12px 24px;">Adicionar</button>
                         </form>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                        <i data-lucide="graduation-cap" style="color:var(--primary);width:20px;height:20px;"></i>
+                        <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--text-main);">Professores Cadastrados</h3>
                     </div>
                     <div class="staff-contacts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 40px;">
                         ${professoresIbma.length === 0 ? '<p style="color: var(--text-muted); grid-column: 1/-1;">Nenhum professor cadastrado.</p>' : professoresIbma.map(p => `
@@ -1878,41 +1895,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         `).join('')}
                     </div>
 
-                    <div class="view-header" style="margin-top: 40px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
-                        <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
-                            <i data-lucide="layers" style="width: 28px; height: 28px;"></i>
-                        </div>
-                        <div>
-                            <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main);">Módulos Escola IBMA</h2>
-                            <p style="margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted);">Membresia, Discipulado, Batismo e Oração</p>
-                        </div>
-                    </div>
-                    <div class="modules-ibma-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 40px;">
-                        <div class="stat-card" style="height: auto; padding: 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;">
-                            <div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
-                                <i data-lucide="user-check" style="width: 24px; height: 24px;"></i>
-                            </div>
-                            <span style="font-weight: 700; font-size: 1rem; color: var(--text-main);">Membresia</span>
-                        </div>
-                        <div class="stat-card" style="height: auto; padding: 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;">
-                            <div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
-                                <i data-lucide="users" style="width: 24px; height: 24px;"></i>
-                            </div>
-                            <span style="font-weight: 700; font-size: 1rem; color: var(--text-main);">Discipulado</span>
-                        </div>
-                        <div class="stat-card" style="height: auto; padding: 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;">
-                            <div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
-                                <i data-lucide="droplet" style="width: 24px; height: 24px;"></i>
-                            </div>
-                            <span style="font-weight: 700; font-size: 1rem; color: var(--text-main);">Batismo</span>
-                        </div>
-                        <div class="stat-card" style="height: auto; padding: 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;">
-                            <div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
-                                <i data-lucide="heart-handshake" style="width: 24px; height: 24px;"></i>
-                            </div>
-                            <span style="font-weight: 700; font-size: 1rem; color: var(--text-main);">Oração</span>
-                        </div>
-                    </div>
                     ` : ''}
                     ${currentUser.loginType !== 'escolas-ibma' ? `
                     <div class="stats-grid">
@@ -2102,12 +2084,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         formProfIbma.onsubmit = async (e) => {
                             e.preventDefault();
                             const fd = new FormData(formProfIbma);
-                            const obj = { fullName: fd.get('fullName'), phone: fd.get('phone'), email: fd.get('email'), id: Date.now() };
+                            const nome = fd.get('fullName')?.trim();
+                            const tel = fd.get('phone')?.trim();
+                            const email = fd.get('email')?.trim();
+                            if (!nome) { alert('Informe o nome do professor.'); return; }
+                            const obj = { fullName: nome, phone: tel, email: email, id: Date.now() };
                             const list = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]');
                             list.push(obj);
                             localStorage.setItem('professores-escolas-ibma', JSON.stringify(list));
+                            formProfIbma.reset();
                             await renderView('overview');
                         };
+
                     }
                     const formAlunosIbma = document.getElementById('cadastro-alunos-ibma-form');
                     if (formAlunosIbma) {
@@ -2140,12 +2128,417 @@ document.addEventListener('DOMContentLoaded', () => {
                     lucide.createIcons();
                 }, 0);
                 break;
+            case 'alunos-ibma': {
+                let alunosIbmaList = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]');
+                const escolaLabels = { membresia: 'Membresia', discipulado: 'Discipulado', batismo: 'Batismo', oracao: 'Oração', maturidade: 'Maturidade Cristã' };
+
+                const printBoletim = (aluno) => {
+                    const escolaNome = escolaLabels[aluno.escola || aluno.modulo] || '-';
+                    const w = window.open('', '_blank');
+                    const bolRows = (aluno.boletimDados || [{ disciplina: escolaNome, frequencia: '—', nota: '—', situacao: 'Em andamento' }])
+                        .map(d => `<tr><td>${d.disciplina || '-'}</td><td>${d.frequencia || '—'}</td><td>${d.nota || '—'}</td><td>${d.situacao || '—'}</td></tr>`).join('');
+                    w.document.write(`<html><head><title>Boletim - ${aluno.fullName}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', sans-serif; padding: 40px; color: #1e293b; }
+                        .header { display: flex; align-items: center; gap: 20px; border-bottom: 2px solid #1a365d; padding-bottom: 16px; margin-bottom: 20px; }
+                        .header img { width: 70px; height: 70px; object-fit: contain; }
+                        .header-text h1 { margin: 0; color: #1a365d; font-size: 1.4rem; }
+                        .header-text p { margin: 4px 0 0; color: #64748b; font-size: 0.9rem; }
+                        .info { margin: 20px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+                        .info p { margin: 4px 0; } .info strong { color: #1a365d; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+                        th { background: #1a365d; color: white; }
+                        tr:nth-child(even) { background: #f8fafc; }
+                        .no-print { margin-top: 30px; }
+                        @media print { .no-print { display: none; } }
+                    </style></head><body>
+                    <div class="header">
+                        <img src="/logo-escolas-ibma.png" alt="Logo Escola IBMA">
+                        <div class="header-text">
+                            <h1>Boletim do Aluno</h1>
+                            <p>Escola IBMA — Seminário Bíblico Teológico da Amazônia</p>
+                        </div>
+                    </div>
+                    <div class="info">
+                        <p><strong>Nome:</strong> ${aluno.fullName || aluno.nome || '-'}</p>
+                        <p><strong>Escola:</strong> ${escolaNome}</p>
+                        <p><strong>Telefone:</strong> ${aluno.phone || '-'}</p>
+                        <p><strong>E-mail:</strong> ${aluno.email || '-'}</p>
+                    </div>
+                    <table>
+                        <thead><tr><th>Disciplina</th><th>Frequência</th><th>Nota</th><th>Situação</th></tr></thead>
+                        <tbody>${bolRows}</tbody>
+                    </table>
+                    <div class="no-print"><button onclick="window.print()" style="padding:10px 24px;background:#1a365d;color:white;border:none;border-radius:6px;cursor:pointer;font-size:1rem;">Imprimir</button></div>
+                    </body></html>`);
+                    w.document.close();
+                };
+
+                const printCertificado = (aluno) => {
+                    const escolaNome = escolaLabels[aluno.escola || aluno.modulo] || '-';
+                    const certInfo = aluno.certDados || {};
+                    const dataHoje = certInfo.dataEmissao || new Date().toLocaleDateString('pt-BR');
+                    const obsExtra = certInfo.observacao ? `<p style="font-style:italic;color:#475569;margin-top:12px;">${certInfo.observacao}</p>` : '';
+                    const w = window.open('', '_blank');
+                    w.document.write(`<html><head><title>Certificado - ${aluno.fullName}</title>
+                    <style>
+                        body { font-family: 'Georgia', serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f0f4f8; }
+                        .cert { border: 10px double #1a365d; padding: 60px 80px; text-align: center; max-width: 720px; background: white; box-shadow: 0 8px 40px rgba(0,0,0,0.12); }
+                        .cert img { width: 90px; height: 90px; object-fit: contain; margin-bottom: 16px; }
+                        .cert h1 { font-size: 1.8rem; color: #1a365d; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; }
+                        .cert .subtitle { font-size: 0.9rem; color: #64748b; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px; }
+                        .cert h2 { font-size: 1.9rem; color: #0f172a; margin: 16px 0; font-style: italic; }
+                        .cert p { font-size: 1.05rem; color: #334155; line-height: 1.9; }
+                        .cert .escola { font-size: 1.4rem; font-weight: bold; color: #1a365d; margin: 8px 0 16px; }
+                        .cert .data { margin-top: 40px; font-size: 0.9rem; color: #64748b; }
+                        .cert .line { width: 220px; border-top: 1px solid #1a365d; margin: 10px auto 4px; }
+                        .cert .assinatura { font-size: 0.85rem; color: #1a365d; }
+                        @media print { body { background: white; } .no-print { display: none; } }
+                    </style></head><body>
+                    <div class="cert">
+                        <img src="/logo-escolas-ibma.png" alt="Logo Escola IBMA">
+                        <h1>Certificado de Conclusão</h1>
+                        <div class="subtitle">Escola IBMA — SEBITAM</div>
+                        <p>Certificamos que</p>
+                        <h2>${aluno.fullName || aluno.nome || '-'}</h2>
+                        <p>concluiu com êxito o curso de</p>
+                        <div class="escola">${escolaNome}</div>
+                        <p>oferecido pela <strong>Escola IBMA</strong> —<br>Seminário Bíblico Teológico da Amazônia.</p>
+                        ${obsExtra}
+                        <div class="data">Emitido em ${dataHoje}</div>
+                        <br>
+                        <div class="line"></div>
+                        <div class="assinatura">Direção — SEBITAM</div>
+                        <br>
+                        <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:10px 24px;background:#1a365d;color:white;border:none;border-radius:6px;cursor:pointer;font-size:1rem;">Imprimir</button></div>
+                    </div>
+                    </body></html>`);
+                    w.document.close();
+                };
+
+                html = `
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 28px;">
+                        <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="users" style="width: 30px; height: 30px;"></i>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--text-main);">Alunos</h2>
+                            <p style="margin: 4px 0 0; font-size: 0.95rem; color: var(--text-muted);">Todos os alunos matriculados nas Escolas IBMA</p>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Aluno</th>
+                                    <th>Contato</th>
+                                    <th>Escola</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${alunosIbmaList.length === 0 ? `
+                                    <tr><td colspan="4" style="text-align:center; padding: 32px; color: var(--text-muted);">Nenhum aluno cadastrado ainda.</td></tr>
+                                ` : alunosIbmaList.slice().reverse().map(a => `
+                                    <tr data-aluno-id="${a.id}">
+                                        <td>
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <div style="width:36px;height:36px;border-radius:50%;background:rgba(var(--primary-rgb),0.1);color:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                                    <i data-lucide="user" style="width:17px;height:17px;"></i>
+                                                </div>
+                                                <span style="font-weight:600;color:var(--text-main);">${a.fullName || a.nome || '-'}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div style="display:flex;flex-direction:column;gap:3px;font-size:0.88rem;">
+                                                <span style="color:var(--primary);display:flex;align-items:center;gap:5px;"><i data-lucide="mail" style="width:13px;height:13px;"></i> ${a.email || '-'}</span>
+                                                <span style="color:var(--text-muted);display:flex;align-items:center;gap:5px;"><i data-lucide="phone" style="width:13px;height:13px;"></i> ${a.phone || '-'}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span style="background:rgba(var(--primary-rgb),0.1);color:var(--primary);padding:4px 12px;border-radius:20px;font-size:0.82rem;font-weight:600;">
+                                                ${escolaLabels[a.escola || a.modulo] || '-'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                             <div style="display:flex;align-items:center;gap:6px;">
+                                                 <button class="btn-icon ibma-boletim-btn" data-id="${a.id}" title="Boletim" style="color:#3b82f6;">
+                                                     <i data-lucide="file-text" style="width:17px;height:17px;"></i>
+                                                 </button>
+                                                 <button class="btn-icon ibma-certificado-btn" data-id="${a.id}" title="Certificado" style="color:#8b5cf6;">
+                                                     <i data-lucide="award" style="width:17px;height:17px;"></i>
+                                                 </button>
+                                                 <button class="btn-icon ibma-print-btn" data-id="${a.id}" title="Imprimir" style="color:#059669;">
+                                                     <i data-lucide="printer" style="width:17px;height:17px;"></i>
+                                                 </button>
+                                                 ${(currentUser.role === 'teacher' || currentUser.role === 'admin') ? `
+                                                 <button class="btn-icon ibma-edit-btn" data-id="${a.id}" title="Editar" style="color:#f59e0b;">
+                                                     <i data-lucide="edit-3" style="width:17px;height:17px;"></i>
+                                                 </button>
+                                                 <button class="btn-icon red ibma-delete-btn" data-id="${a.id}" title="Excluir">
+                                                     <i data-lucide="trash-2" style="width:17px;height:17px;"></i>
+                                                 </button>
+                                                 ` : ''}
+                                             </div>
+
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                setTimeout(() => {
+                    lucide.createIcons();
+
+                    document.querySelectorAll('.ibma-boletim-btn').forEach(btn => {
+                        btn.onclick = () => {
+                            const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
+                            if (aluno) printBoletim(aluno);
+                        };
+                    });
+
+                    document.querySelectorAll('.ibma-certificado-btn').forEach(btn => {
+                        btn.onclick = () => {
+                            const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
+                            if (aluno) printCertificado(aluno);
+                        };
+                    });
+
+                    document.querySelectorAll('.ibma-print-btn').forEach(btn => {
+                        btn.onclick = () => {
+                            const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
+                            if (aluno) printBoletim(aluno);
+                        };
+                    });
+
+                    document.querySelectorAll('.ibma-edit-btn').forEach(btn => {
+                        btn.onclick = () => {
+                            const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
+                            if (!aluno) return;
+
+                            // Remove existing modal if any
+                            document.getElementById('ibma-edit-modal')?.remove();
+
+                            const bols = aluno.boletimDados || [{ disciplina: escolaLabels[aluno.escola || aluno.modulo] || '-', frequencia: '', nota: '', situacao: 'Em andamento' }];
+                            const cert = aluno.certDados || { dataEmissao: new Date().toLocaleDateString('pt-BR'), observacao: '' };
+
+                            const modal = document.createElement('div');
+                            modal.id = 'ibma-edit-modal';
+                            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+                            modal.innerHTML = `
+                                <div style="background:#ffffff;border-radius:20px;padding:32px;max-width:620px;width:100%;max-height:90vh;overflow-y:auto;color:#1e293b;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                                    <button id="ibma-modal-close" style="position:absolute;top:16px;right:16px;background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:1.4rem;">✕</button>
+                                    <h2 style="margin:0 0 6px;font-size:1.3rem;font-weight:800;color:#0f172a;">Editar Aluno</h2>
+                                    <p style="margin:0 0 24px;font-size:0.9rem;color:#64748b;">Dados do boletim e certificado para <strong style="color:#1e293b;">${aluno.fullName || aluno.nome || ''}</strong></p>
+
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+                                        <div>
+                                            <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Nome Completo</label>
+                                            <input id="ibma-edit-nome" value="${aluno.fullName || aluno.nome || ''}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#1e293b;font-size:0.95rem;box-sizing:border-box;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Telefone</label>
+                                            <input id="ibma-edit-tel" value="${aluno.phone || ''}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#1e293b;font-size:0.95rem;box-sizing:border-box;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">E-mail</label>
+                                            <input id="ibma-edit-email" value="${aluno.email || ''}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#1e293b;font-size:0.95rem;box-sizing:border-box;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size:0.8rem;font-weight:600;color:#64748b;display:block;margin-bottom:4px;">Data de Emissão (Certificado)</label>
+                                            <input id="ibma-edit-data" value="${cert.dataEmissao}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#1e293b;font-size:0.95rem;box-sizing:border-box;">
+                                        </div>
+                                    </div>
+
+                                    <div style="margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">
+                                        <label style="font-size:0.85rem;font-weight:700;color:#6366f1;">📄 Boletim — Disciplinas</label>
+                                        <button id="ibma-add-disc" style="background:#ede9fe;color:#6366f1;border:none;padding:5px 12px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;">+ Adicionar</button>
+                                    </div>
+                                    <div id="ibma-disc-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+                                        ${bols.map((d, i) => `
+                                            <div class="ibma-disc-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr auto;gap:8px;align-items:center;">
+                                                <input class="disc-nome" value="${d.disciplina || ''}" placeholder="Disciplina" style="padding:9px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#1e293b;font-size:0.88rem;">
+                                                <input class="disc-freq" value="${d.frequencia || ''}" placeholder="Freq. %" style="padding:9px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#1e293b;font-size:0.88rem;text-align:center;">
+                                                <input class="disc-nota" value="${d.nota || ''}" placeholder="Nota" style="padding:9px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#1e293b;font-size:0.88rem;text-align:center;">
+                                                <select class="disc-sit" style="padding:9px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#1e293b;font-size:0.88rem;">
+                                                    <option ${d.situacao === 'Em andamento' ? 'selected' : ''}>Em andamento</option>
+                                                    <option ${d.situacao === 'Aprovado' ? 'selected' : ''}>Aprovado</option>
+                                                    <option ${d.situacao === 'Reprovado' ? 'selected' : ''}>Reprovado</option>
+                                                    <option ${d.situacao === 'Concluído' ? 'selected' : ''}>Concluído</option>
+                                                </select>
+                                                <button class="ibma-rm-disc" style="background:#fee2e2;color:#ef4444;border:none;padding:9px;border-radius:8px;cursor:pointer;">✕</button>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+
+                                    <label style="font-size:0.85rem;font-weight:700;color:#6366f1;display:block;margin-bottom:6px;">🏅 Observação no Certificado</label>
+                                    <textarea id="ibma-edit-obs" placeholder="Texto adicional que aparecerá no certificado (opcional)..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;color:#1e293b;font-size:0.9rem;resize:vertical;min-height:70px;box-sizing:border-box;">${cert.observacao || ''}</textarea>
+
+                                    <div style="display:flex;gap:12px;margin-top:24px;justify-content:flex-end;">
+                                        <button id="ibma-modal-cancel" style="padding:11px 24px;border-radius:10px;border:1px solid #e2e8f0;background:#f1f5f9;color:#64748b;cursor:pointer;font-size:0.95rem;">Cancelar</button>
+                                        <button id="ibma-modal-save" style="padding:11px 28px;border-radius:10px;border:none;background:#6366f1;color:white;font-weight:700;cursor:pointer;font-size:0.95rem;">Salvar</button>
+                                    </div>
+                                </div>
+                            `;
+                            document.body.appendChild(modal);
+                            lucide.createIcons();
+
+                            const closeModal = () => modal.remove();
+                            modal.querySelector('#ibma-modal-close').onclick = closeModal;
+                            modal.querySelector('#ibma-modal-cancel').onclick = closeModal;
+                            modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+                            // Add discipline row
+                            modal.querySelector('#ibma-add-disc').onclick = () => {
+                                const list = modal.querySelector('#ibma-disc-list');
+                                const row = document.createElement('div');
+                                row.className = 'ibma-disc-row';
+                                row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr auto;gap:8px;align-items:center;';
+                                row.innerHTML = `
+                                    <input class="disc-nome" placeholder="Disciplina" style="padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.07);color:var(--text-main,#f1f5f9);font-size:0.88rem;">
+                                    <input class="disc-freq" placeholder="Freq. %" style="padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.07);color:var(--text-main,#f1f5f9);font-size:0.88rem;text-align:center;">
+                                    <input class="disc-nota" placeholder="Nota" style="padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.07);color:var(--text-main,#f1f5f9);font-size:0.88rem;text-align:center;">
+                                    <select class="disc-sit" style="padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:var(--card-bg,#1e293b);color:var(--text-main,#f1f5f9);font-size:0.88rem;">
+                                        <option>Em andamento</option><option>Aprovado</option><option>Reprovado</option><option>Concluído</option>
+                                    </select>
+                                    <button class="ibma-rm-disc" style="background:rgba(239,68,68,0.12);color:#ef4444;border:none;padding:9px;border-radius:8px;cursor:pointer;">✕</button>
+                                `;
+                                list.appendChild(row);
+                                row.querySelector('.ibma-rm-disc').onclick = () => row.remove();
+                            };
+
+                            // Remove discipline rows
+                            modal.querySelectorAll('.ibma-rm-disc').forEach(b => b.onclick = () => b.closest('.ibma-disc-row').remove());
+
+                            // Save
+                            modal.querySelector('#ibma-modal-save').onclick = () => {
+                                const rows = modal.querySelectorAll('.ibma-disc-row');
+                                const boletimDados = Array.from(rows).map(r => ({
+                                    disciplina: r.querySelector('.disc-nome').value,
+                                    frequencia: r.querySelector('.disc-freq').value,
+                                    nota: r.querySelector('.disc-nota').value,
+                                    situacao: r.querySelector('.disc-sit').value,
+                                }));
+                                const list = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]');
+                                const idx = list.findIndex(a => String(a.id) === String(aluno.id));
+                                if (idx !== -1) {
+                                    list[idx].fullName = modal.querySelector('#ibma-edit-nome').value;
+                                    list[idx].phone = modal.querySelector('#ibma-edit-tel').value;
+                                    list[idx].email = modal.querySelector('#ibma-edit-email').value;
+                                    list[idx].boletimDados = boletimDados;
+                                    list[idx].certDados = {
+                                        dataEmissao: modal.querySelector('#ibma-edit-data').value,
+                                        observacao: modal.querySelector('#ibma-edit-obs').value,
+                                    };
+                                    localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
+                                }
+                                closeModal();
+                                renderView('alunos-ibma');
+                            };
+                        };
+                    });
+
+
+                    document.querySelectorAll('.ibma-delete-btn').forEach(btn => {
+                        btn.onclick = () => {
+                            if (!confirm('Excluir este aluno?')) return;
+                            const list = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]').filter(a => String(a.id) !== String(btn.dataset.id));
+                            localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
+                            renderView('alunos-ibma');
+                        };
+                    });
+                }, 0);
+                break;
+            }
+            case 'professores-ibma': {
+                const profList = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]');
+
+                html = `
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 28px;">
+                        <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="graduation-cap" style="width: 30px; height: 30px;"></i>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--text-main);">Professores</h2>
+                            <p style="margin: 4px 0 0; font-size: 0.95rem; color: var(--text-muted);">Todos os professores cadastrados nas Escolas IBMA</p>
+                        </div>
+                    </div>
+                    ${profList.length === 0 ? `
+                        <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+                            <i data-lucide="graduation-cap" style="width:48px;height:48px;margin-bottom:16px;opacity:0.3;"></i>
+                            <p style="font-size:1rem;">Nenhum professor cadastrado ainda.</p>
+                        </div>
+                    ` : `
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Professor</th>
+                                        <th>Contato</th>
+                                        ${(currentUser.role === 'teacher' || currentUser.role === 'admin') ? '<th>Ações</th>' : ''}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${profList.map(p => `
+                                        <tr>
+                                            <td>
+                                                <div style="display:flex;align-items:center;gap:12px;">
+                                                    <div style="width:38px;height:38px;border-radius:50%;background:rgba(var(--primary-rgb),0.1);color:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                                        <i data-lucide="user" style="width:18px;height:18px;"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div style="font-weight:700;color:var(--text-main);">${p.name || p.fullName || '-'}</div>
+                                                        <div style="font-size:0.8rem;color:var(--text-muted);">Professor</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style="font-size:0.88rem;color:var(--text-muted);display:flex;flex-direction:column;gap:4px;">
+                                                    ${p.email ? `<span style="display:flex;align-items:center;gap:5px;"><i data-lucide="mail" style="width:13px;height:13px;"></i>${p.email}</span>` : ''}
+                                                    ${p.phone ? `<span style="display:flex;align-items:center;gap:5px;"><i data-lucide="phone" style="width:13px;height:13px;"></i>${p.phone}</span>` : ''}
+                                                    ${!p.email && !p.phone ? '<span>—</span>' : ''}
+                                                </div>
+                                            </td>
+                                            ${(currentUser.role === 'teacher' || currentUser.role === 'admin') ? `
+                                            <td>
+                                                <div style="display:flex;align-items:center;gap:6px;">
+                                                    <button class="btn-icon red ibma-del-prof-btn" data-id="${p.id}" title="Excluir">
+                                                        <i data-lucide="trash-2" style="width:17px;height:17px;"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            ` : ''}
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
+                `;
+                setTimeout(() => {
+                    lucide.createIcons();
+                    document.querySelectorAll('.ibma-del-prof-btn').forEach(btn => {
+                        btn.onclick = () => {
+                            if (!confirm('Excluir este professor?')) return;
+                            const list = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]')
+                                .filter(p => String(p.id) !== String(btn.dataset.id));
+                            localStorage.setItem('professores-escolas-ibma', JSON.stringify(list));
+                            renderView('professores-ibma');
+                        };
+                    });
+                }, 0);
+                break;
+            }
             case 'modulos-ibma': {
+
                 const modulosIbma = [
                     { id: 'membresia', nome: 'Membresia', icon: 'user-check', url: 'https://drive.google.com/drive/folders/1YaUTtYRvjIOGILbRJZxlT-nVIA7OWRxe' },
                     { id: 'discipulado', nome: 'Discipulado', icon: 'users', url: null },
                     { id: 'batismo', nome: 'Batismo', icon: 'droplet', url: null },
-                    { id: 'oracao', nome: 'Oração', icon: 'heart-handshake', url: null }
+                    { id: 'oracao', nome: 'Oração', icon: 'heart-handshake', url: null },
+                    { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star', url: null }
                 ];
                 html = `
                     <div class="view-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
