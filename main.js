@@ -352,23 +352,37 @@ document.addEventListener('DOMContentLoaded', () => {
         let userFound = false;
 
         try {
-            // PRIORIDADE: Quem está cadastrado como admin, professor ou secretário deve fazer login normal
-            const staffTables = [
-                { key: 'sebitam-admins', role: 'admin' },
-                { key: 'sebitam-secretaries', role: 'secretary' },
-                { key: 'sebitam-teachers', role: 'teacher' }
-            ];
-            for (const t of staffTables) {
-                const data = await dbGet(t.key);
-                const match = data.find(u => (u.email && u.email.toLowerCase() === loginEmail));
-                if (match) {
-                    currentUser.role = t.role;
-                    currentUser.name = match.fullName || match.name || loginName;
-                    currentUser.id = match.id;
-                    currentUser.photo = match.photo || null;
-                    currentUser.loginType = 'sebitam'; // Admin/Prof/Secretário sempre usa interface SEBITAM
-                    userFound = true;
-                    break;
+            // ⭐ SUPER ADMIN — edukadoshmda@gmail.com tem permissão total em SEBITAM e Escola IBMA
+            const SUPER_ADMIN_EMAILS = ['edukadoshmda@gmail.com'];
+            if (SUPER_ADMIN_EMAILS.includes(loginEmail)) {
+                currentUser.role = 'admin';
+                currentUser.name = loginName || 'Administrador';
+                currentUser.loginType = loginType; // mantém o tipo de login escolhido
+                currentUser.isSuperAdmin = true;
+                userFound = true;
+                console.log('✅ Super Admin autenticado:', loginEmail, '| Login:', loginType);
+            }
+
+            // PRIORIDADE: Quem está cadastrado como admin, professor ou secretário no SEBITAM
+            // (só se NÃO entrou pelo login IBMA)
+            if (!userFound) {
+                const staffTables = [
+                    { key: 'sebitam-admins', role: 'admin' },
+                    { key: 'sebitam-secretaries', role: 'secretary' },
+                    { key: 'sebitam-teachers', role: 'teacher' }
+                ];
+                for (const t of staffTables) {
+                    const data = await dbGet(t.key);
+                    const match = data.find(u => (u.email && u.email.toLowerCase() === loginEmail));
+                    if (match) {
+                        currentUser.role = t.role;
+                        currentUser.name = match.fullName || match.name || loginName;
+                        currentUser.id = match.id;
+                        currentUser.photo = match.photo || null;
+                        currentUser.loginType = 'sebitam';
+                        userFound = true;
+                        break;
+                    }
                 }
             }
 
@@ -419,8 +433,9 @@ document.addEventListener('DOMContentLoaded', () => {
         applySavedTheme();
         lucide.createIcons();
         document.body.classList.toggle('login-escolas-ibma', currentUser.loginType === 'escolas-ibma');
+        document.body.classList.toggle('super-admin-ibma', !!(currentUser.loginType === 'escolas-ibma' && currentUser.isSuperAdmin));
         const overviewLabel = document.getElementById('nav-overview-label');
-        if (overviewLabel) overviewLabel.textContent = currentUser.loginType === 'escolas-ibma' ? 'Cadastro de Professores' : 'Visão Geral';
+        if (overviewLabel) overviewLabel.textContent = (currentUser.loginType === 'escolas-ibma' && !currentUser.isSuperAdmin) ? 'Cadastro de Professores e Alunos' : 'Visão Geral';
         const brandText = document.getElementById('sidebar-brand-text');
         if (brandText) brandText.textContent = currentUser.loginType === 'escolas-ibma' ? 'Escola IBMA' : 'SEBITAM';
 
@@ -442,7 +457,8 @@ document.addEventListener('DOMContentLoaded', () => {
         loginScreen.classList.add('active');
         setLoginTheme();
         currentUser.loginType = 'sebitam';
-        document.body.classList.remove('login-escolas-ibma');
+        currentUser.isSuperAdmin = false;
+        document.body.classList.remove('login-escolas-ibma', 'super-admin-ibma');
         const overviewLabel = document.getElementById('nav-overview-label');
         if (overviewLabel) overviewLabel.textContent = 'Visão Geral';
         const brandText = document.getElementById('sidebar-brand-text');
@@ -882,7 +898,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 <!-- Ações -->
-                <div style="margin-top: 30px; display: flex; gap: 15px; justify-content: flex-end;">
+                <div style="margin-top: 30px; display: flex; gap: 15px; justify-content: flex-end; flex-wrap: wrap;">
+                    ${(currentUser.role === 'teacher' || currentUser.role === 'admin' || currentUser.role === 'secretary') ? `
+                    <button onclick="renderGradeEditor('${studentId}')" class="btn-primary" style="display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="edit-3"></i>
+                        Editar Notas e Frequências
+                    </button>` : ''}
                     <button onclick="printAcademicHistory('${studentId}')" class="btn-primary" style="background: var(--secondary); display: flex; align-items: center; gap: 8px;">
                         <i data-lucide="printer"></i>
                         Imprimir Histórico
@@ -1050,29 +1071,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveBtn = document.getElementById('save-grades');
         if (saveBtn) {
             saveBtn.onclick = async () => {
-                const grades = {};
-                const freqs = {};
+                const grades = {}, freqs = {};
                 document.querySelectorAll('.subject-grade').forEach(i => {
-                    const val = parseFloat(i.value);
-                    if (!isNaN(val) && val >= 0) {
-                        grades[i.dataset.subject] = val;
-                    }
+                    const val = i.value.trim();
+                    grades[i.dataset.subject] = val === '' ? null : parseFloat(val);
                 });
                 document.querySelectorAll('.subject-freq').forEach(i => {
-                    const val = parseInt(i.value);
-                    if (!isNaN(val) && val >= 0) {
-                        freqs[i.dataset.subject] = val;
-                    }
+                    const val = i.value.trim();
+                    freqs[i.dataset.subject] = val === '' ? null : parseFloat(val);
                 });
-                await dbUpdateItem('sebitam-students', studentId, {
+
+                const success = await dbUpdateItem('sebitam-students', studentId, {
                     subjectGrades: grades,
                     subjectFreqs: freqs
                 });
-                alert('Boletim salvo com sucesso!');
-                await renderView('classes');
+
+                if (success) {
+                    alert('Boletim atualizado com sucesso!');
+                    renderView('classes');
+                }
             };
         }
-
         document.getElementById('print-grades').onclick = () => printAcademicHistory(studentId);
     }
 
@@ -1630,11 +1649,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saveBtn) {
             saveBtn.onclick = async () => {
                 const grades = {}, freqs = {};
-                document.querySelectorAll('.subject-grade').forEach(i => grades[i.dataset.subject] = parseFloat(i.value));
-                document.querySelectorAll('.subject-freq').forEach(i => freqs[i.dataset.subject] = parseInt(i.value));
-                await dbUpdateItem('sebitam-students', studentId, { subjectGrades: grades, subjectFreqs: freqs });
-                alert('Boletim salvo!');
-                await renderView('classes');
+                document.querySelectorAll('.subject-grade').forEach(i => {
+                    const val = i.value.trim();
+                    grades[i.dataset.subject] = val === '' ? null : parseFloat(val);
+                });
+                document.querySelectorAll('.subject-freq').forEach(i => {
+                    const val = i.value.trim();
+                    freqs[i.dataset.subject] = val === '' ? null : parseFloat(val);
+                });
+
+                const success = await dbUpdateItem('sebitam-students', studentId, {
+                    subjectGrades: grades,
+                    subjectFreqs: freqs
+                });
+
+                if (success) {
+                    alert('Boletim salvo com sucesso!');
+                    await renderView('classes');
+                }
             };
         }
         document.getElementById('print-grades').onclick = () => printAcademicHistory(studentId);
@@ -1769,9 +1801,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 const professoresIbma = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]');
                 const alunosIbma = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]');
                 html = `
-                    <div class="welcome-card"><h1 style="color: white !important;">Olá, ${currentUser.name}!</h1></div>
+                    <div class="welcome-card"><h1 style="color: white !important;">Olá, ${currentUser.name}!
+                        ${currentUser.loginType === 'escolas-ibma' && currentUser.role === 'admin' ? `
+                        <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.7rem;background:rgba(234,179,8,0.25);border:1px solid rgba(234,179,8,0.5);border-radius:20px;padding:3px 12px;margin-left:10px;vertical-align:middle;font-weight:700;letter-spacing:0.5px;color:#fef08a;">
+                            ⭐ Super Admin
+                        </span>` : ''}
+                    </h1></div>
                     ${currentUser.loginType === 'escolas-ibma' ? `
-                    <div class="view-header" style="margin-top: 32px; display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+
+                    ${currentUser.role === 'admin' ? `
+                    <!-- PAINEL ADMIN IBMA -->
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin:24px 0;">
+                        <div class="stat-card" style="text-align:center;padding:20px 12px;">
+                            <div class="stat-icon" style="margin:0 auto 10px;"><i data-lucide="graduation-cap"></i></div>
+                            <div class="stat-value">${professoresIbma.length}</div>
+                            <div class="stat-label">Professores</div>
+                        </div>
+                        <div class="stat-card" style="text-align:center;padding:20px 12px;">
+                            <div class="stat-icon" style="margin:0 auto 10px;"><i data-lucide="users"></i></div>
+                            <div class="stat-value">${alunosIbma.length}</div>
+                            <div class="stat-label">Alunos</div>
+                        </div>
+                        <div class="stat-card" style="text-align:center;padding:20px 12px;">
+                            <div class="stat-icon" style="margin:0 auto 10px;"><i data-lucide="book-open"></i></div>
+                            <div class="stat-value">${new Set(alunosIbma.map(a => a.escola || a.modulo).filter(Boolean)).size || 5}</div>
+                            <div class="stat-label">Escolas Ativas</div>
+                        </div>
+                        <div class="stat-card" style="text-align:center;padding:20px 12px;">
+                            <div class="stat-icon" style="margin:0 auto 10px;"><i data-lucide="message-circle"></i></div>
+                            <div class="stat-value" style="font-size:1.2rem;">Chat</div>
+                            <div class="stat-label">Tempo Real</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+                        <button class="btn-primary ibma-nav-btn" data-view="alunos-ibma" style="padding:10px 20px;font-size:0.9rem;display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="users" style="width:16px;height:16px;"></i> Ver Alunos e Notas
+                        </button>
+                        <button class="btn-primary ibma-nav-btn" data-view="chat-sebitam" style="padding:10px 20px;font-size:0.9rem;background:var(--secondary);display:flex;align-items:center;gap:8px;">
+                            <i data-lucide="message-circle" style="width:16px;height:16px;"></i> Abrir Chat IBMA
+                        </button>
+                    </div>
+                    ` : ''}
+
+                    <div class="view-header" style="margin-top: 8px; display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
                         <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
                             <i data-lucide="graduation-cap" style="width: 28px; height: 28px;"></i>
                         </div>
@@ -1923,46 +1995,47 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
 
                     ` : ''}
-                    ${currentUser.loginType !== 'escolas-ibma' ? `
-                    <div class="view-header" style="margin-top: 32px; margin-bottom: 20px;">
-                        <h2>Acesso Rápido</h2>
+                    ` : ''
+        }
+
+                    ${
+            currentUser.loginType === 'escolas-ibma' ? `
+                    <div class="corpo-docente-header" style="margin-top: 40px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                        <div class="corpo-docente-icon" style="width: 52px; height: 52px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i data-lucide="graduation-cap" style="width: 28px; height: 28px;"></i>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main);">Professores Escola IBMA</h2>
+                            <p style="margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted);">Professores cadastrados neste módulo</p>
+                        </div>
                     </div>
-                    <div class="overview-shortcuts-grid">
-                        <a href="#" class="overview-shortcut" data-view="users">
-                            <div class="overview-shortcut-icon"><i data-lucide="users"></i></div>
-                            <span class="overview-shortcut-label">Gestão de Usuários</span>
-                        </a>
-                        <a href="#" class="overview-shortcut" data-view="didatico">
-                            <div class="overview-shortcut-icon"><i data-lucide="book-open"></i></div>
-                            <span class="overview-shortcut-label">Didático Professores e Alunos</span>
-                        </a>
-                        <a href="#" class="overview-shortcut" data-view="enrollment">
-                            <div class="overview-shortcut-icon"><i data-lucide="user-plus"></i></div>
-                            <span class="overview-shortcut-label">Cadastro (Alunos, Profs, Adm, Sec)</span>
-                        </a>
-                        <a href="#" class="overview-shortcut" data-view="classes">
-                            <div class="overview-shortcut-icon"><i data-lucide="clipboard-list"></i></div>
-                            <span class="overview-shortcut-label">Alunos</span>
-                        </a>
-                        <a href="https://drive.google.com/drive/folders/1bHiOrFojPoQOcaTerk23vi-y8jtKwTd5" target="_blank" rel="noopener noreferrer" class="overview-shortcut overview-shortcut-external">
-                            <div class="overview-shortcut-icon"><i data-lucide="image"></i></div>
-                            <span class="overview-shortcut-label">Fotos & Vídeos</span>
-                        </a>
-                        <a href="#" class="overview-shortcut" data-view="termo">
-                            <div class="overview-shortcut-icon"><i data-lucide="file-text"></i></div>
-                            <span class="overview-shortcut-label">Normas Sebitam</span>
-                        </a>
-                        <a href="#" class="overview-shortcut" data-view="mensalidades">
-                            <div class="overview-shortcut-icon"><i data-lucide="wallet"></i></div>
-                            <span class="overview-shortcut-label">Sebitam Mensalidades</span>
-                        </a>
-                        <a href="#" class="overview-shortcut" data-view="matricula-escolas">
-                            <div class="overview-shortcut-icon"><i data-lucide="school"></i></div>
-                            <span class="overview-shortcut-label">Matrícula para Escolas</span>
-                        </a>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 40px;">
+                        <div class="stat-card" style="height: auto; align-items: flex-start; padding: 25px; background: white; border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); width: 100%;">
+                            <div style="width: 100%;">
+                                ${professoresIbma.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum professor cadastrado.</p>' :
+                    professoresIbma.map(t => `
+                                        <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
+                                            <div>
+                                                <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${t.fullName || t.name}</div>
+                                                <div style="color: var(--primary); font-size: 0.85rem; display: flex; align-items: center; gap: 5px; margin-top: 4px;">
+                                                    <i data-lucide="phone" style="width: 14px; height: 14px;"></i> <strong>${t.phone || 'Sem contato'}</strong>
+                                                </div>
+                                                <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2px;">${t.email || ''}</div>
+                                            </div>
+                                            ${currentUser.role === 'admin' ? `
+                                            <button class="btn-icon red delete-staff-ibma-ov" data-id="${t.id}" title="Excluir" style="padding: 4px; width: 28px; height: 28px;">
+                                                <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                                            </button>` : ''}
+                                        </div>
+                                    `).join('')
+                }   </div>
+                        </div>
                     </div>
-                    ` : ''}
-                    ${currentUser.loginType !== 'escolas-ibma' ? `
+                    ` : ''
+        }
+
+                    ${
+            currentUser.loginType !== 'escolas-ibma' ? `
                     <div class="corpo-docente-header" style="margin-top: 40px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
                         <div class="corpo-docente-icon" style="width: 52px; height: 52px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                             <i data-lucide="graduation-cap" style="width: 28px; height: 28px;"></i>
@@ -1982,7 +2055,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div style="width: 100%;">
                                 ${listAdmins.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum administrador cadastrado.</p>' :
-                            listAdmins.map(a => `
+                    listAdmins.map(a => `
                                         <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                                             <div>
                                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${a.name}</div>
@@ -1996,7 +2069,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>` : ''}
                                         </div>
                                     `).join('')
-                        }                   </div>
+                }                   </div>
                         </div>
 
                         <!-- Sec Card -->
@@ -2007,7 +2080,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div style="width: 100%;">
                                  ${listSecs.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum secretário cadastrado.</p>' :
-                            listSecs.map(s => `
+                    listSecs.map(s => `
                                         <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                                             <div>
                                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${s.name}</div>
@@ -2021,7 +2094,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>` : ''}
                                         </div>
                                     `).join('')
-                        }                   </div>
+                }                   </div>
                         </div>
 
                         <!-- Teacher Card -->
@@ -2032,7 +2105,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div style="width: 100%;">
                                 ${listTeachers.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum professor cadastrado.</p>' :
-                            listTeachers.map(t => `
+                    listTeachers.map(t => `
                                         <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                                             <div>
                                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${t.name}</div>
@@ -2046,20 +2119,25 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>` : ''}
                                         </div>
                                     `).join('')
-                        }
+                }
                             </div>
                         </div>
                     </div>
-                    ` : ''}
-                `;
+                    ` : ''
+        }
+        `;
                 setTimeout(() => {
+                    // Botões de atalho do painel Admin IBMA
+                    document.querySelectorAll('.ibma-nav-btn').forEach(btn => {
+                        btn.addEventListener('click', () => renderView(btn.dataset.view));
+                    });
                     document.querySelectorAll('.delete-staff-ov').forEach(b => {
                         b.onclick = async () => {
                             const type = b.dataset.type;
                             const id = b.dataset.id;
-                            console.log(`Deleting staff member: ${type} with id ${id}`);
+                            console.log(`Deleting staff member: ${ type } with id ${ id } `);
                             const label = type === 'admin' ? 'Administrador' : type === 'teacher' ? 'Professor' : 'Secretário';
-                            if (!confirm(`Tem certeza que deseja excluir este ${label}?`)) return;
+                            if (!confirm(`Tem certeza que deseja excluir este ${ label }?`)) return;
                             const key = type === 'teacher' ? 'sebitam-teachers' : type === 'admin' ? 'sebitam-admins' : 'sebitam-secretaries';
                             await dbDeleteItem(key, id);
                             await renderView('overview');
@@ -2138,8 +2216,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const escolaNome = escolaLabels[aluno.escola || aluno.modulo] || '-';
                     const w = window.open('', '_blank');
                     const bolRows = (aluno.boletimDados || [{ disciplina: escolaNome, frequencia: '—', nota: '—', situacao: 'Em andamento' }])
-                        .map(d => `<tr><td>${d.disciplina || '-'}</td><td>${d.frequencia || '—'}</td><td>${d.nota || '—'}</td><td>${d.situacao || '—'}</td></tr>`).join('');
-                    w.document.write(`<html><head><title>Boletim - ${aluno.fullName}</title>
+                        .map(d => `< tr ><td>${d.disciplina || '-'}</td><td>${d.frequencia || '—'}</td><td>${d.nota || '—'}</td><td>${d.situacao || '—'}</td></tr > `).join('');
+                    w.document.write(`< html ><head><title>Boletim - ${aluno.fullName}</title>
                     <style>
                         body { font-family: 'Segoe UI', sans-serif; padding: 40px; color: #1e293b; }
                         .header { display: flex; align-items: center; gap: 20px; border-bottom: 2px solid #1a365d; padding-bottom: 16px; margin-bottom: 20px; }
@@ -2173,7 +2251,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <tbody>${bolRows}</tbody>
                     </table>
                     <div class="no-print"><button onclick="window.print()" style="padding:10px 24px;background:#1a365d;color:white;border:none;border-radius:6px;cursor:pointer;font-size:1rem;">Imprimir</button></div>
-                    </body></html>`);
+                    </body></html > `);
                     w.document.close();
                 };
 
@@ -2181,9 +2259,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const escolaNome = escolaLabels[aluno.escola || aluno.modulo] || '-';
                     const certInfo = aluno.certDados || {};
                     const dataHoje = certInfo.dataEmissao || new Date().toLocaleDateString('pt-BR');
-                    const obsExtra = certInfo.observacao ? `<p style="font-style:italic;color:#475569;margin-top:12px;">${certInfo.observacao}</p>` : '';
+                    const obsExtra = certInfo.observacao ? `< p style = "font-style:italic;color:#475569;margin-top:12px;" > ${ certInfo.observacao }</p > ` : '';
                     const w = window.open('', '_blank');
-                    w.document.write(`<html><head><title>Certificado - ${aluno.fullName}</title>
+                    w.document.write(`< html ><head><title>Certificado - ${aluno.fullName}</title>
                     <style>
                         body { font-family: 'Georgia', serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f0f4f8; }
                         .cert { border: 10px double #1a365d; padding: 60px 80px; text-align: center; max-width: 720px; background: white; box-shadow: 0 8px 40px rgba(0,0,0,0.12); }
@@ -2567,6 +2645,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => lucide.createIcons(), 0);
                 break;
             }
+            case 'modulos-sebitam': {
+                // Módulos do SEBITAM - visível para professores, admins e secretários
+                const modulosSebitam = [
+                    { id: 1, title: 'Módulo 1: Fundamentos', icon: 'book-open', subs: ['Bibliologia', 'Teontologia', 'Introdução N.T', 'Introdução A.T'] },
+                    { id: 2, title: 'Módulo 2: Contexto Histórico', icon: 'map', subs: ['Geografia Bíblica', 'Hermenêutica', 'Período Inter bíblico', 'Ética Cristã'] },
+                    { id: 3, title: 'Módulo 3: Doutrinas Específica', icon: 'layers', subs: ['Soteriologia', 'Eclesiologia', 'Escatologia', 'Homlética'] },
+                    { id: 4, title: 'Módulo 4: Teologia Aplicada', icon: 'briefcase', subs: ['Teologia Contemporânea', 'In. T. Bíblica A.T', 'In. T. Bíblica N.T', 'Teologia Pastoral'] },
+                    { id: 5, title: 'Módulo 5: Prática Pastoral', icon: 'heart', subs: ['Exegese Bíblica', 'Psicologia Pastoral'] },
+                ];
+                html = `
+                    <div class="view-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
+                        <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="layers" style="width: 30px; height: 30px;"></i>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--text-main);">Módulos SEBITAM</h2>
+                            <p style="margin: 6px 0 0; font-size: 0.95rem; color: var(--text-muted);">Grade curricular do Curso Médio em Teologia</p>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+                        ${modulosSebitam.map(m => `
+                        <div class="stat-card" style="height: auto; padding: 28px; align-items: flex-start;">
+                            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); width: 100%;">
+                                <div style="width: 48px; height: 48px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    <i data-lucide="${m.icon}" style="width: 24px; height: 24px;"></i>
+                                </div>
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main);">${m.title}</h3>
+                            </div>
+                            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; width: 100%;">
+                                ${m.subs.map(sub => `
+                                <li style="display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 0.95rem;">
+                                    <i data-lucide="check-circle" style="width: 16px; height: 16px; color: var(--primary); flex-shrink: 0;"></i>
+                                    ${sub}
+                                </li>`).join('')}
+                            </ul>
+                            ${(currentUser.role === 'teacher' || currentUser.role === 'admin' || currentUser.role === 'secretary') ? `
+                            <button onclick="renderView('classes')" class="btn-primary" style="margin-top: 20px; width: 100%; padding: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem;">
+                                <i data-lucide="users"></i> Ver Alunos deste Módulo
+                            </button>` : ''}
+                        </div>
+                        `).join('')}
+                    </div>
+                `;
+                setTimeout(() => lucide.createIcons(), 0);
+                break;
+            }
             case 'matricula-escolas': {
                 const matriculas = JSON.parse(localStorage.getItem('matriculas-escolas') || '[]');
                 const escolas = [
@@ -2943,6 +3067,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (currentUser.role === 'student') {
                     allSt = allSt.filter(s => s.fullName.toLowerCase().trim() === currentUser.name.toLowerCase().trim());
                 }
+                // Professores vêem todos os alunos
                 html = `
                         <div class="view-header" > <h2>${currentUser.role === 'student' ? 'Minha Situação Acadêmica' : 'Gestão de Alunos'}</h2></div>
                         <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid #eab308; color: #854d0e; padding: 15px 20px; border-radius: 12px; margin-bottom: 25px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 0.95rem; box-shadow: var(--shadow-sm);">
@@ -3794,126 +3919,374 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             }
             case 'theology-ai':
-            case 'theology-ai':
-            case 'chat-sebitam':
+            case 'chat-sebitam': {
+                // ============================================================
+                // CHAT COM SUPABASE REALTIME
+                // ============================================================
                 const isSebitam = view === 'chat-sebitam';
-                const isTeacher = ['admin', 'teacher'].includes(currentUser.role);
+                const isTeacherChat = ['admin', 'teacher'].includes(currentUser.role);
+                const canDeleteChat = ['admin', 'teacher'].includes(currentUser.role);
 
-                let selectedTurma = window.currentChatTurma || 1;
-                if (!isTeacher && currentUser.grade) {
-                    selectedTurma = currentUser.grade;
+                let selectedTurmaChat = window.currentChatTurma || 1;
+                if (!isTeacherChat && currentUser.grade) {
+                    selectedTurmaChat = currentUser.grade;
                 }
 
-                const chatKey = isSebitam ? `chat-sebitam-turma-${selectedTurma}` : 'chat-escolas-ibma';
-                const chatList = JSON.parse(localStorage.getItem(chatKey) || '[]');
+                // Canal da conversa: 'sebitam-turma-1' ... 'ibma'
+                const canalChat = isSebitam
+                    ? `sebitam-turma-${selectedTurmaChat}`
+                    : 'ibma';
 
-                const deleteChatMessage = (index) => {
-                    const list = JSON.parse(localStorage.getItem(chatKey) || '[]');
-                    list.splice(index, 1);
-                    localStorage.setItem(chatKey, JSON.stringify(list));
-                    renderView(view);
+                // Utilitário: tempo relativo
+                const tempoRelativo = (isoOrMs) => {
+                    const d = new Date(isoOrMs);
+                    const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+                    if (diff < 60) return 'agora';
+                    if (diff < 3600) return `há ${Math.floor(diff / 60)} min`;
+                    if (diff < 86400) {
+                        const h = Math.floor(diff / 3600);
+                        const m = Math.floor((diff % 3600) / 60);
+                        return m > 0 ? `há ${h}h ${m}min` : `há ${h}h`;
+                    }
+                    const dias = Math.floor(diff / 86400);
+                    if (dias < 7) return dias === 1 ? 'há 1 dia' : `há ${dias} dias`;
+                    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
                 };
-                window.deleteChatMessage = deleteChatMessage;
+
+                // Constrói o HTML de uma mensagem
+                const buildMsgHTML = (m, idx) => {
+                    const isOwn = m.autor === currentUser.name;
+                    const roleLabel = m.role === 'admin' ? '👑 Admin' : m.role === 'teacher' ? '📚 Professor' : '🎓 Aluno';
+                    const canDel = canDeleteChat || m.autor === currentUser.name;
+                    const idBtn = `del-msg-${m.id || idx}`;
+                    const ts = tempoRelativo(m.created_at || m.time);
+                    return `
+                        <div class="message ${isOwn ? 'user' : 'ai'}" data-msg-id="${m.id || idx}">
+                            <div class="msg-bubble shadow-sm" style="position: relative; max-width: 75%;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 4px;">
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <span style="font-size: 0.78rem; font-weight: 700; color: ${isOwn ? 'rgba(255,255,255,0.85)' : 'var(--primary)'};">${m.autor}</span>
+                                        <span style="font-size: 0.7rem; opacity: 0.7; background: rgba(0,0,0,0.08); border-radius: 20px; padding: 1px 7px;">${roleLabel}</span>
+                                    </div>
+                                    ${canDel ? `<button id="${idBtn}" data-id="${m.id}" data-idx="${idx}" class="chat-delete-btn" style="background:none; border:none; padding:2px; cursor:pointer; color: ${isOwn ? 'rgba(255,255,255,0.6)' : '#ef4444'}; opacity: 0.7; flex-shrink:0;" title="Excluir mensagem">
+                                        <i data-lucide="trash-2" style="width: 13px; height: 13px; pointer-events:none;"></i>
+                                    </button>` : ''}
+                                </div>
+                                <div style="line-height: 1.55; word-break: break-word;">${m.texto.replace(/\n/g, '<br>')}</div>
+                                <div style="font-size: 0.7rem; opacity: 0.6; margin-top: 5px; text-align: right;">${ts}</div>
+                            </div>
+                        </div>`;
+                };
+
+                // Renderiza lista de mensagens no container
+                const renderMsgs = (list) => {
+                    const el = document.getElementById('chat-messages');
+                    if (!el) return;
+                    if (list.length === 0) {
+                        el.innerHTML = `<div class="message ai">
+                            <div class="msg-bubble shadow-sm" style="opacity:0.7;">
+                                <i data-lucide="message-circle" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>
+                                Nenhuma mensagem ainda. Seja o primeiro a conversar!
+                            </div>
+                        </div>`;
+                    } else {
+                        el.innerHTML = list.map((m, idx) => buildMsgHTML(m, idx)).join('');
+                        // Vincular botões de deletar
+                        el.querySelectorAll('.chat-delete-btn').forEach(btn => {
+                            btn.addEventListener('click', () => window.chatDeleteMsg(btn.dataset.id, btn.dataset.idx));
+                        });
+                    }
+                    el.scrollTop = el.scrollHeight;
+                    if (window.lucide) lucide.createIcons();
+                };
+
+                // Gera opções de turma 1–10
+                const turmaOptions = Array.from({ length: 10 }, (_, i) => i + 1)
+                    .map(n => `<option value="${n}" ${selectedTurmaChat == n ? 'selected' : ''}>Turma ${n}</option>`)
+                    .join('');
 
                 html = `
-                        <div class="view-header">
-                            <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
-                                <div style="width: 60px; height: 60px; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                    <i data-lucide="message-circle" style="width: 32px; height: 32px; color: #475569;"></i>
-                                </div>
-                                <div style="flex: 1;">
-                                    <h2 style="margin:0; display: flex; align-items: center; gap: 10px;">
-                                        Chat - ${isSebitam ? 'SEBITAM' : 'Escolas IBMA'}
-                                        ${isSebitam && isTeacher ? `
-                                            <select id="chat-turma-selector" style="margin-left:auto; padding: 5px 10px; border-radius: 5px; border: 1px solid #cbd5e1; font-size: 0.95rem; background: white; color: var(--text-main); font-family: inherit; cursor: pointer; max-width: 150px;">
-                                                <option value="1" ${selectedTurma == 1 ? 'selected' : ''}>Turma 1</option>
-                                                <option value="2" ${selectedTurma == 2 ? 'selected' : ''}>Turma 2</option>
-                                                <option value="3" ${selectedTurma == 3 ? 'selected' : ''}>Turma 3</option>
-                                                <option value="4" ${selectedTurma == 4 ? 'selected' : ''}>Turma 4</option>
-                                                <option value="5" ${selectedTurma == 5 ? 'selected' : ''}>Turma 5</option>
-                                            </select>
-                                        ` : ''}
-                                        ${isSebitam && !isTeacher ? `
-                                            <span style="margin-left:auto; font-size: 0.95rem; color: var(--text-muted); font-weight: normal; background: #e2e8f0; padding: 4px 10px; border-radius: 12px;">Turma ${selectedTurma}</span>
-                                        ` : ''}
+                    <div class="view-header">
+                        <div style="display: flex; align-items: center; gap: 15px; width: 100%; flex-wrap: wrap;">
+                            <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #818cf8); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 14px rgba(37,99,235,0.35);">
+                                <i data-lucide="message-circle" style="width: 26px; height: 26px; color: white;"></i>
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                    <h2 style="margin:0; font-size:1.3rem;">
+                                        Chat ${isSebitam ? 'SEBITAM' : 'Escolas IBMA'}
                                     </h2>
-                                    <p style="margin:0; color:var(--text-muted); font-size:0.9rem;">Interação entre alunos e professores ${isSebitam ? 'do SEBITAM' : 'da Escola IBMA'}</p>
+                                    <span id="chat-status-badge" style="display:inline-flex; align-items:center; gap:5px; font-size:0.72rem; background:#fef9c3; color:#854d0e; border:1px solid #fde047; border-radius:20px; padding:2px 10px; font-weight:600;">
+                                        <span style="width:7px;height:7px;border-radius:50%;background:#eab308;display:inline-block;"></span> Conectando...
+                                    </span>
+                                    ${isSebitam && isTeacherChat ? `
+                                        <select id="chat-turma-selector" style="margin-left:auto; padding:5px 12px; border-radius:8px; border:1px solid var(--border); font-size:0.9rem; background:white; color:var(--text-main); font-family:inherit; cursor:pointer; box-shadow:var(--shadow-sm);">
+                                            ${turmaOptions}
+                                        </select>
+                                    ` : ''}
+                                    ${isSebitam && !isTeacherChat ? `
+                                        <span style="margin-left:auto; font-size:0.85rem; color:var(--text-muted); background:#e2e8f0; padding:3px 12px; border-radius:20px; font-weight:600;">Turma ${selectedTurmaChat}</span>
+                                    ` : ''}
+                                </div>
+                                <p style="margin:4px 0 0; color:var(--text-muted); font-size:0.85rem;">
+                                    <i data-lucide="zap" style="width:13px;height:13px;vertical-align:middle;color:#22c55e;margin-right:3px;"></i>
+                                    Mensagens em tempo real ${isSebitam ? '· ' + 'Turma ' + selectedTurmaChat : ''}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-container" style="display:flex; flex-direction:column; height: calc(100vh - 260px); min-height:400px;">
+                        <div class="chat-messages" id="chat-messages" style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:12px;">
+                            <div class="message ai">
+                                <div class="msg-bubble shadow-sm" style="opacity:0.6; display:flex; align-items:center; gap:8px;">
+                                    <div class="chat-typing-dots"><span></span><span></span><span></span></div>
+                                    Carregando mensagens...
                                 </div>
                             </div>
                         </div>
-
-                        <div class="chat-container">
-                            <div class="chat-messages" id="chat-messages">
-                                ${chatList.length === 0 ? `
-                                <div class="message ai">
-                                    <div class="msg-bubble shadow-sm">
-                                        <p style="color: var(--text-muted);">Nenhuma mensagem ainda. Seja o primeiro a iniciar a conversa!</p>
-                                    </div>
-                                </div>
-                                ` : chatList.map((m, idx) => {
-                    const isOwn = m.author === currentUser.name;
-                    const tipo = m.role === 'teacher' ? 'Professor' : 'Aluno';
-                    return `<div class="message ${isOwn ? 'user' : 'ai'}">
-                                        <div class="msg-bubble shadow-sm" style="position: relative;">
-                                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-                                                <div style="font-size: 0.8rem; color: #64748b; font-weight: 700; margin-bottom: 6px;">${m.author} (${tipo})</div>
-                                                <button onclick="deleteChatMessage(${idx})" style="background:none; border:none; padding:0; cursor:pointer; color: #ef4444; opacity: 0.6;" title="Excluir mensagem">
-                                                    <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
-                                                </button>
-                                            </div>
-                                            <div>${m.text.replace(/\n/g, '<br>')}</div>
-                                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">${new Date(m.time).toLocaleString('pt-BR')}</div>
-                                        </div>
-                                    </div>`;
-                }).join('')}
+                        <div class="chat-input-area" style="flex-shrink:0;">
+                            <div class="chat-input-wrapper" style="border-radius:16px; align-items:flex-end; padding:12px 20px; gap:15px;">
+                                <textarea id="chat-input" placeholder="Digite sua mensagem... (Enter para enviar, Shift+Enter para nova linha)"
+                                    style="flex:1; border:none; outline:none; font-size:0.97rem; padding:8px 0; min-height:50px; max-height:150px; resize:none; background:transparent; font-family:inherit; line-height:1.55;"></textarea>
+                                <button class="chat-send-btn" id="send-chat-btn" style="width:50px; height:50px; flex-shrink:0; border-radius:12px; margin-bottom:4px;" title="Enviar mensagem">
+                                    <i data-lucide="send" style="width:22px; height:22px;"></i>
+                                </button>
                             </div>
-
-                            <div class="chat-input-area">
-                                <div class="chat-input-wrapper" style="border-radius: 20px; align-items: flex-end; padding: 15px 25px; gap: 20px;">
-                                    <textarea id="chat-input" placeholder="Digite sua mensagem..." style="flex: 1; border: none; outline: none; font-size: 1rem; padding: 10px 0; min-height: 80px; max-height: 200px; resize: none; background: transparent; font-family: inherit; line-height: 1.6;"></textarea>
-                                    <button class="chat-send-btn" id="send-chat-btn" style="margin-bottom: 10px; width: 55px; height: 55px;">
-                                        <i data-lucide="send" style="width: 24px; height: 24px;"></i>
-                                    </button>
-                                </div>
-                            </div>
+                            <p style="text-align:center; font-size:0.72rem; color:var(--text-muted); opacity:0.7; margin:4px 0 0;">
+                                <i data-lucide="shield-check" style="width:11px;height:11px;vertical-align:middle;"></i>
+                                Salvo no Supabase &bull; sincronização em tempo real
+                            </p>
                         </div>
-                    `;
+                    </div>
+                `;
 
-                setTimeout(() => {
-                    const chatMessages = document.getElementById('chat-messages');
-                    const chatInput = document.getElementById('chat-input');
-                    const sendBtn = document.getElementById('send-chat-btn');
+                setTimeout(async () => {
+                    const chatMessagesEl = document.getElementById('chat-messages');
+                    const chatInputEl = document.getElementById('chat-input');
+                    const sendBtnEl = document.getElementById('send-chat-btn');
+                    const statusBadge = document.getElementById('chat-status-badge');
 
-                    const handleSend = () => {
-                        const text = chatInput.value.trim();
+                    // Cancelar subscription anterior se existir (troca de turma, etc.)
+                    if (window._chatRealtimeChannel) {
+                        try { await supabase.removeChannel(window._chatRealtimeChannel); } catch (_) { }
+                        window._chatRealtimeChannel = null;
+                    }
+
+                    // ---- Função de exclusão de mensagem ----
+                    window.chatDeleteMsg = async (msgId, fallbackIdx) => {
+                        if (!canDeleteChat) return;
+                        if (!confirm('Excluir esta mensagem?')) return;
+                        try {
+                            if (supabase && msgId && msgId !== 'undefined') {
+                                const { error } = await supabase
+                                    .from('mensagens')
+                                    .delete()
+                                    .eq('id', msgId);
+                                if (error) throw error;
+                                // A exclusão será refletida via realtime (ou re-fetch)
+                                // Por segurança, re-fetch
+                                await fetchAndRender();
+                            } else {
+                                // Fallback localStorage
+                                const list = JSON.parse(localStorage.getItem(`chat-${canalChat}`) || '[]');
+                                list.splice(Number(fallbackIdx), 1);
+                                localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
+                                renderMsgs(list);
+                            }
+                        } catch (err) {
+                            console.error('Erro ao deletar mensagem:', err);
+                            alert('Erro ao excluir mensagem.');
+                        }
+                    };
+
+                    // ---- Buscar mensagens iniciais ----
+                    const fetchAndRender = async () => {
+                        try {
+                            if (supabase) {
+                                const { data, error } = await supabase
+                                    .from('mensagens')
+                                    .select('*')
+                                    .eq('canal', canalChat)
+                                    .order('created_at', { ascending: true })
+                                    .limit(200);
+                                if (error) throw error;
+                                // Salvar cópia no localStorage como cache
+                                localStorage.setItem(`chat-${canalChat}`, JSON.stringify(data));
+                                renderMsgs(data);
+                            } else {
+                                throw new Error('Supabase não disponível');
+                            }
+                        } catch (err) {
+                            console.warn('Chat: usando localStorage como fallback.', err);
+                            const cached = JSON.parse(localStorage.getItem(`chat-${canalChat}`) || '[]');
+                            // Normalizar formato antigo (time → created_at, text → texto, author → autor)
+                            const normalized = cached.map((m, i) => ({
+                                id: m.id || i,
+                                canal: canalChat,
+                                autor: m.autor || m.author || currentUser.name,
+                                role: m.role || 'student',
+                                texto: m.texto || m.text || '',
+                                created_at: m.created_at || new Date(m.time || Date.now()).toISOString()
+                            }));
+                            renderMsgs(normalized);
+                            if (statusBadge) {
+                                statusBadge.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:#f97316;display:inline-block;"></span> Offline (cache)`;
+                                statusBadge.style.background = '#fff7ed';
+                                statusBadge.style.color = '#9a3412';
+                                statusBadge.style.borderColor = '#fdba74';
+                            }
+                        }
+                    };
+
+                    await fetchAndRender();
+
+                    // ---- Configurar Supabase Realtime ----
+                    if (supabase) {
+                        try {
+                            const channel = supabase
+                                .channel(`chat-realtime-${canalChat}-${Date.now()}`)
+                                .on('postgres_changes', {
+                                    event: 'INSERT',
+                                    schema: 'public',
+                                    table: 'mensagens',
+                                    filter: `canal=eq.${canalChat}`
+                                }, (payload) => {
+                                    // Adicionar nova mensagem ao DOM sem re-renderizar tudo
+                                    const list = JSON.parse(localStorage.getItem(`chat-${canalChat}`) || '[]');
+                                    const exists = list.some(m => m.id === payload.new.id);
+                                    if (!exists) {
+                                        list.push(payload.new);
+                                        localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
+                                        // Inserir no DOM incrementalmente
+                                        if (chatMessagesEl) {
+                                            // Remover mensagem vazia de boas vindas se existir
+                                            const emptyMsg = chatMessagesEl.querySelector('.chat-empty-hint');
+                                            if (emptyMsg) emptyMsg.remove();
+                                            const wrapper = document.createElement('div');
+                                            wrapper.innerHTML = buildMsgHTML(payload.new, list.length - 1);
+                                            const node = wrapper.firstElementChild;
+                                            chatMessagesEl.appendChild(node);
+                                            // Vincular botão deletar
+                                            const delBtn = node.querySelector('.chat-delete-btn');
+                                            if (delBtn) {
+                                                delBtn.addEventListener('click', () => window.chatDeleteMsg(delBtn.dataset.id, delBtn.dataset.idx));
+                                            }
+                                            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+                                            if (window.lucide) lucide.createIcons();
+                                        }
+                                    }
+                                })
+                                .on('postgres_changes', {
+                                    event: 'DELETE',
+                                    schema: 'public',
+                                    table: 'mensagens',
+                                    filter: `canal=eq.${canalChat}`
+                                }, (payload) => {
+                                    // Remover mensagem do DOM
+                                    const el = chatMessagesEl && chatMessagesEl.querySelector(`[data-msg-id="${payload.old.id}"]`);
+                                    if (el) el.remove();
+                                    // Atualizar cache
+                                    const list = JSON.parse(localStorage.getItem(`chat-${canalChat}`) || '[]')
+                                        .filter(m => String(m.id) !== String(payload.old.id));
+                                    localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
+                                })
+                                .subscribe((status) => {
+                                    if (!statusBadge) return;
+                                    if (status === 'SUBSCRIBED') {
+                                        statusBadge.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span> Ao vivo`;
+                                        statusBadge.style.background = '#f0fdf4';
+                                        statusBadge.style.color = '#15803d';
+                                        statusBadge.style.borderColor = '#86efac';
+                                    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                                        statusBadge.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block;"></span> Erro de conexão`;
+                                        statusBadge.style.background = '#fef2f2';
+                                        statusBadge.style.color = '#b91c1c';
+                                        statusBadge.style.borderColor = '#fca5a5';
+                                    }
+                                });
+
+                            window._chatRealtimeChannel = channel;
+                        } catch (realtimeErr) {
+                            console.warn('Realtime não disponível:', realtimeErr);
+                        }
+                    }
+
+                    // ---- Enviar mensagem ----
+                    const handleSendChat = async () => {
+                        const text = chatInputEl ? chatInputEl.value.trim() : '';
                         if (!text) return;
-                        const role = isTeacher ? 'teacher' : 'student';
+                        const role = isTeacherChat ? (currentUser.role === 'admin' ? 'admin' : 'teacher') : 'student';
+                        const novaMensagem = {
+                            canal: canalChat,
+                            autor: currentUser.name,
+                            role,
+                            texto: text
+                        };
 
-                        const list = JSON.parse(localStorage.getItem(chatKey) || '[]');
-                        list.push({ text, author: currentUser.name, role, time: Date.now() });
-                        localStorage.setItem(chatKey, JSON.stringify(list));
-                        renderView(view);
+                        // Desabilitar botão temporariamente (feedback visual)
+                        if (sendBtnEl) {
+                            sendBtnEl.disabled = true;
+                            sendBtnEl.style.opacity = '0.5';
+                        }
+                        if (chatInputEl) chatInputEl.value = '';
+
+                        try {
+                            if (supabase) {
+                                const { error } = await supabase.from('mensagens').insert([novaMensagem]);
+                                if (error) throw error;
+                                // O Realtime vai capturar e exibir — não precisamos fazer nada aqui
+                            } else {
+                                throw new Error('Supabase offline');
+                            }
+                        } catch (err) {
+                            console.warn('Salvando no localStorage (fallback):', err);
+                            // Fallback: salvar localmente e mostrar
+                            const offline = {
+                                ...novaMensagem,
+                                id: Date.now(),
+                                created_at: new Date().toISOString()
+                            };
+                            const list = JSON.parse(localStorage.getItem(`chat-${canalChat}`) || '[]');
+                            list.push(offline);
+                            localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
+                            renderMsgs(list);
+                        } finally {
+                            if (sendBtnEl) {
+                                sendBtnEl.disabled = false;
+                                sendBtnEl.style.opacity = '1';
+                            }
+                            if (chatInputEl) chatInputEl.focus();
+                        }
                     };
 
-                    sendBtn.onclick = handleSend;
-                    chatInput.onkeypress = (e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
-                    };
+                    if (sendBtnEl) sendBtnEl.onclick = handleSendChat;
+                    if (chatInputEl) {
+                        chatInputEl.onkeydown = (e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); }
+                        };
+                    }
 
-                    if (isSebitam && isTeacher) {
-                        const selector = document.getElementById('chat-turma-selector');
-                        if (selector) {
-                            selector.addEventListener('change', (e) => {
+                    // ---- Troca de turma (professor/admin no SEBITAM) ----
+                    if (isSebitam && isTeacherChat) {
+                        const selectorEl = document.getElementById('chat-turma-selector');
+                        if (selectorEl) {
+                            selectorEl.addEventListener('change', async (e) => {
                                 window.currentChatTurma = e.target.value;
+                                // Cancelar subscription atual antes de trocar
+                                if (window._chatRealtimeChannel) {
+                                    try { await supabase.removeChannel(window._chatRealtimeChannel); } catch (_) { }
+                                    window._chatRealtimeChannel = null;
+                                }
                                 renderView(view);
                             });
                         }
                     }
 
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
                     lucide.createIcons();
                 }, 0);
                 break;
+            }
         }
         if (html) contentBody.innerHTML = html;
         lucide.createIcons();

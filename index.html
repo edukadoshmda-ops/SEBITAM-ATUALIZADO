@@ -3,23 +3,46 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <title>SEBITAM</title>
+    <title>SEBITAM — Seminário Bíblico Teológico da Amazônia</title>
     <meta name="description"
-        content="Plataforma educacional SEBITAM - Gestão para administradores, professores e alunos.">
+        content="Plataforma educacional do SEBITAM — gestão de alunos, professores, financeiro e chat em tempo real.">
+
+    <!-- PWA / Theme -->
     <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SEBITAM">
+    <meta name="application-name" content="SEBITAM">
+    <meta name="msapplication-TileColor" content="#0f172a">
+    <meta name="msapplication-TileImage" content="icons/icon-144x144.png">
+
+    <!-- Manifest -->
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="logo.jpg">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+    <link rel="shortcut icon" href="favicon-32.png">
+
+    <!-- Apple Touch Icons (iOS) -->
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180x180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="icons/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" href="icons/icon-180x180.png">
+
+    <!-- Preconnect fontes -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Outfit:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=202602120136">
+    <link rel="stylesheet" href="style.css?v=20260308">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -35,7 +58,7 @@
                 <div class="login-card">
                     <div class="login-header">
                         <div class="logo-area">
-                            <img src="logo.jpg" alt="SEBITAM Logo" class="main-logo">
+                            <img src="logo-sebitam.png" alt="SEBITAM - Seminário Bíblico Teológico da Amazônia" class="main-logo">
                         </div>
                         <h2 class="welcome-title">Seja bem vindo</h2>
                         <p class="login-subtitle">Escolha o tipo de acesso</p>
@@ -91,6 +114,11 @@
                         <span id="nav-overview-label">Visão Geral</span>
                     </a>
                     <a href="#" class="nav-item nav-escolas-ibma-only" data-view="modulos-ibma">
+                        <i data-lucide="layers"></i>
+                        <span>Módulos</span>
+                    </a>
+                    <a href="#" class="nav-item nav-sebitam-only access-admin access-secretary access-teacher"
+                        data-view="modulos-sebitam">
                         <i data-lucide="layers"></i>
                         <span>Módulos</span>
                     </a>
@@ -203,9 +231,10 @@
 
     <!-- PWA Install Banner -->
     <div id="pwa-install-banner"
-        style="display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--primary, #0f172a); color: white; padding: 14px 24px; border-radius: 50px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 9999; cursor: pointer; font-weight: 600; font-size: 0.95rem; align-items: center; gap: 10px;">
-        <i data-lucide="download" style="width: 20px; height: 20px;"></i>
+        style="display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 12px 20px 12px 16px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); z-index: 9999; cursor: pointer; font-weight: 600; font-size: 0.95rem; align-items: center; gap: 14px; border: 1px solid rgba(255,255,255,0.1);">
+        <img src="logo-sebitam.png" alt="SEBITAM" style="width: 44px; height: 44px; object-fit: contain;">
         <span>Instalar App SEBITAM</span>
+        <i data-lucide="download" style="width: 20px; height: 20px; flex-shrink: 0;"></i>
     </div>
 
     <!-- Supabase Configuration -->
