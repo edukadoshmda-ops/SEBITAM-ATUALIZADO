@@ -42,7 +42,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Outfit:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260308">
+    <link rel="stylesheet" href="style.css?v=20260308c">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -58,7 +58,7 @@
                 <div class="login-card">
                     <div class="login-header">
                         <div class="logo-area">
-                            <img src="logo-sebitam.png" alt="SEBITAM - Seminário Bíblico Teológico da Amazônia" class="main-logo">
+                            <img src="logo-sebitam.png" alt="SEBITAM" class="main-logo" onerror="this.src='logo.jpg';this.onerror=null;">
                         </div>
                         <h2 class="welcome-title">Seja bem vindo</h2>
                         <p class="login-subtitle">Escolha o tipo de acesso</p>
@@ -92,7 +92,9 @@
 
                         <button type="submit" class="btn-primary">Acessar Sistema</button>
                     </form>
-
+                    <p style="margin-top:16px;font-size:0.8rem;color:var(--text-muted);">
+                        <a href="?nocache=1" style="color:var(--primary);">App não carrega? Clique aqui</a>
+                    </p>
                 </div>
             </div>
         </section>
@@ -240,17 +242,17 @@
     <!-- Supabase Configuration -->
     <script src="supabase-config.js"></script>
 
-    <script src="main.js?v=202602120136"></script>
+    <script src="main.js?v=20260308c"></script>
     <script>
-        // Initialize Lucide icons
         lucide.createIcons();
-
-        // PWA - Registrar Service Worker
+        // Limpar SW antigo se ?nocache=1 (para usuários com app quebrado)
+        if ('serviceWorker' in navigator && /[?&]nocache=1/.test(location.search)) {
+            navigator.serviceWorker.getRegistrations().then(r => r.forEach(reg => reg.unregister()));
+        }
+        // PWA - Service Worker (HTML/JS nunca cacheados)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(() => {
-                    console.log('PWA: Service Worker registrado.');
-                }).catch((err) => console.warn('PWA: Erro ao registrar SW:', err));
+                navigator.serviceWorker.register('/sw.js').then(() => {}).catch(() => {});
             });
         }
 

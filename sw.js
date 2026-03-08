@@ -1,18 +1,14 @@
 // ============================================================
-// SEBITAM — Service Worker v3.0  (PWA)
+// SEBITAM — Service Worker v5  (PWA - HTML/JS nunca do cache)
 // ============================================================
-const CACHE_NAME = 'sebitam-v3';
+const CACHE_NAME = 'sebitam-v5';
 
+// NÃO pré-cachear index.html, main.js, style.css - sempre buscar da rede
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/main.js',
   '/manifest.json',
-  '/supabase-config.js',
   '/logo.jpg',
+  '/logo-sebitam.png',
   '/logo-escolas-ibma.png',
-  // Ícones PWA
   '/icon-192.png',
   '/icon-512.png',
   '/icons/icon-48x48.png',
@@ -55,9 +51,8 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// ---- Fetch: Network-First com fallback para cache ----
+// ---- Fetch: HTML e JS SEMPRE da rede (evita tela preta após deploy) ----
 self.addEventListener('fetch', (e) => {
-  // Ignorar requisições externas (Supabase, CDNs, fontes)
   const url = e.request.url;
   const isExternal =
     url.includes('supabase.co') ||
@@ -68,10 +63,20 @@ self.addEventListener('fetch', (e) => {
 
   if (!url.startsWith('http') || isExternal) return;
 
+  // CRÍTICO: index.html, main.js, style.css, raiz - SEMPRE da rede (evita cache quebrado)
+  const u = new URL(url);
+  const isCritical = u.pathname === '/' || u.pathname === '/index.html' ||
+    u.pathname.includes('main.js') || u.pathname.includes('style.css') || u.pathname.includes('supabase-config');
+
+  if (isCritical) {
+    e.respondWith(fetch(e.request)); // Sempre rede - sem cache
+    return;
+  }
+
+  // Outros assets: network-first com cache
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        // Atualiza cache com resposta mais recente
         if (res && res.status === 200 && res.type !== 'opaque') {
           const clone = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));

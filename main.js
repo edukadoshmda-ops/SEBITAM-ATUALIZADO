@@ -1,9 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("SEBITAM v5.1 Loaded (SSH Enabled)");
+    try {
+    console.log("SEBITAM v5.2 Loaded");
     // DOM Elements
     const loginForm = document.getElementById('login-form');
     const loginScreen = document.getElementById('login-screen');
     const dashboardScreen = document.getElementById('dashboard-screen');
+    if (!loginForm || !loginScreen) {
+        throw new Error('Elementos do login não encontrados. Limpe o cache (Ctrl+Shift+Del) e recarregue.');
+    }
     const themeButtons = document.querySelectorAll('.theme-btn');
     const logoutBtn = document.getElementById('logout-btn');
 
@@ -4421,8 +4425,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Run check and initial view
-    checkAndRegisterSuperAdmin().then(() => {
-        renderView('overview');
-    });
+    // Run check em background; pré-render overview sem bloquear
+    checkAndRegisterSuperAdmin()
+        .then(() => { try { renderView('overview'); } catch (e) { console.warn('renderView overview:', e); } })
+        .catch(() => { /* falha silenciosa - login continua funcionando */ });
+    } catch (err) {
+        console.error('Erro crítico ao carregar SEBITAM:', err);
+        document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;"><h2>Erro ao carregar</h2><p>Recarregue a página (Ctrl+F5 para limpar cache).</p><button onclick="location.reload(true)" style="padding:12px 24px;background:#0f172a;color:white;border:none;border-radius:8px;cursor:pointer;">Recarregar</button></div>';
+    }
 });
