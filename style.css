@@ -559,8 +559,8 @@ body {
     opacity: 0.7;
 }
 
-/* Esconde itens SEBITAM no menu quando login é Escolas IBMA (exceto super admin) */
-body.login-escolas-ibma:not(.super-admin-ibma) .nav-sebitam-only {
+/* Esconde itens SEBITAM no menu quando login é Escolas IBMA */
+body.login-escolas-ibma .nav-sebitam-only {
     display: none !important;
 }
 

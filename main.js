@@ -1,595 +1,628 @@
 document.addEventListener('DOMContentLoaded', () => {
     try {
-    console.log("SEBITAM v5.2 Loaded");
-    // DOM Elements
-    const loginForm = document.getElementById('login-form');
-    const loginScreen = document.getElementById('login-screen');
-    const dashboardScreen = document.getElementById('dashboard-screen');
-    if (!loginForm || !loginScreen) {
-        throw new Error('Elementos do login não encontrados. Limpe o cache (Ctrl+Shift+Del) e recarregue.');
-    }
-    const themeButtons = document.querySelectorAll('.theme-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-
-    const userNameEl = document.getElementById('user-name');
-    const userRoleEl = document.getElementById('user-role');
-    const navItems = document.querySelectorAll('.nav-item');
-
-    // State
-    let currentUser = {
-        role: 'admin',
-        name: 'Administrador',
-        loginType: 'sebitam'
-    };
-    // Navigation History
-    let viewHistory = [];
-    let currentView = 'login';
-    let currentData = null;
-
-    // --- CONFIGURAÇÃO SUPABASE ---
-    // Usando configuração do arquivo externo (supabase-config.js)
-    const SUPABASE_URL = window.SUPABASE_CONFIG?.url || "https://vwruogwdtbsareighmoc.supabase.co";
-    const SUPABASE_ANON_KEY = window.SUPABASE_CONFIG?.anonKey || "";
-
-    // Inicialização do Cliente Supabase
-    let supabase = null;
-    try {
-        // Validar se a chave foi configurada (aceita tanto eyJ quanto sb_publishable)
-        const isKeyConfigured = SUPABASE_ANON_KEY &&
-            SUPABASE_ANON_KEY !== "COLE_AQUI_SUA_CHAVE_ANON_DO_SUPABASE" &&
-            (SUPABASE_ANON_KEY.startsWith('eyJ') || SUPABASE_ANON_KEY.startsWith('sb_'));
-
-        if (!isKeyConfigured) {
-            console.warn("⚠️ SUPABASE NÃO CONFIGURADO! Edite supabase-config.js e cole sua chave anon.");
-            console.warn("📖 Instruções: Acesse Supabase Dashboard > Settings > API > copie 'anon public'");
-            console.warn("🔄 Usando modo offline (localStorage) temporariamente.");
-        } else if (window.supabase && typeof window.supabase.createClient === 'function') {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log("✅ Supabase inicializado com sucesso!");
-            console.log("📡 Conectado ao projeto:", SUPABASE_URL.replace('https://', ''));
-        } else {
-            console.warn("⚠️ SDK do Supabase não encontrado. Usando modo offline (localStorage).");
+        console.log("SEBITAM v5.3 Loaded");
+        // DOM Elements
+        const loginForm = document.getElementById('login-form');
+        const loginScreen = document.getElementById('login-screen');
+        const dashboardScreen = document.getElementById('dashboard-screen');
+        if (!loginForm || !loginScreen || !dashboardScreen) {
+            throw new Error('Elementos do login não encontrados. Limpe o cache (Ctrl+Shift+Del) e recarregue.');
         }
-    } catch (err) {
-        console.error("❌ Erro crítico ao inicializar Supabase:", err);
-        console.warn("🔄 Usando modo offline (localStorage).");
-    }
+        const themeButtons = document.querySelectorAll('.theme-btn');
+        const logoutBtn = document.getElementById('logout-btn');
 
-    // Mapping frontend collection names to Supabase table names (conforme tabelas no seu projeto)
-    const tableMap = {
-        'sebitam-students': 'estudantes',
-        'sebitam-teachers': 'professores',
-        'sebitam-admins': 'administradores',
-        'sebitam-secretaries': 'secretarias'
-    };
+        const userNameEl = document.getElementById('user-name');
+        const userRoleEl = document.getElementById('user-role');
+        const navItems = document.querySelectorAll('.nav-item');
 
-    // Mapping frontend fields to Supabase fields (for students)
-    function mapToSupabase(item, collectionName) {
-        if (!item) return item;
-        const mappedTable = tableMap[collectionName];
-        if (mappedTable === 'estudantes') {
-            // Tabela no Supabase usa colunas em inglês (full_name, module, grade, plan) - ver PERMISSOES-SCHEMA-PUBLIC.sql
-            const fullName = item.fullName ?? item.full_name ?? item['nome completo'] ?? item.nome_completo;
-            const moduleVal = item.module ?? item.módulo ?? item.modulo;
-            const gradeVal = item.grade ?? item.nota;
-            const planVal = item.plan ?? item.plano;
-            const mapped = {};
-            if (fullName != null && fullName !== '') mapped.full_name = String(fullName);
-            if (moduleVal != null) mapped.module = parseInt(moduleVal, 10) || 1;
-            if (gradeVal != null) mapped.grade = parseInt(gradeVal, 10) || 1;
-            if (planVal != null && planVal !== '') mapped.plan = String(planVal);
-            if (item.email !== undefined) mapped.email = item.email;
-            if (item.phone !== undefined) mapped.phone = item.phone;
-            if (item.subjectGrades !== undefined) mapped.subject_grades = item.subjectGrades;
-            if (item.subjectFreqs !== undefined) mapped.subject_freqs = item.subjectFreqs;
-            if (item.paymentStatus !== undefined) mapped.payment_status = item.paymentStatus;
-            return mapped;
-        }
-        return item; // For others, assume direct mapping or handle as needed
-    }
+        // State
+        let currentUser = {
+            role: 'admin',
+            name: 'Administrador',
+            loginType: 'sebitam'
+        };
+        // Navigation History
+        let viewHistory = [];
+        let currentView = 'login';
+        let currentData = null;
 
-    // Para tabela estudantes: pega valor tentando várias chaves possíveis (Supabase pode retornar nomes diferentes)
-    function getEstudanteField(item, nameVariants) {
-        for (const key of nameVariants) {
-            const v = item[key];
-            if (v !== undefined && v !== null && v !== '') return v;
-        }
-        const targets = nameVariants.map(v => v.toLowerCase().replace(/\s/g, '').replace(/[óô]/g, 'o'));
-        for (const k of Object.keys(item || {})) {
-            const kNorm = k.toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '').replace(/[óô]/g, 'o');
-            if (targets.some(t => kNorm === t || kNorm.includes(t) || t.includes(kNorm))) return item[k];
-        }
-        return undefined;
-    }
+        // --- CONFIGURAÇÃO SUPABASE ---
+        // Usando configuração do arquivo externo (supabase-config.js)
+        const SUPABASE_URL = window.SUPABASE_CONFIG?.url || "https://vwruogwdtbsareighmoc.supabase.co";
+        const SUPABASE_ANON_KEY = window.SUPABASE_CONFIG?.anonKey || "";
 
-    function mapFromSupabase(item, collectionName) {
-        if (!item) return item;
-        const mappedTable = tableMap[collectionName];
-        if (mappedTable === 'estudantes') {
-            // Coluna no Supabase: "nome completo" (com espaço) - tentar essa chave primeiro e variantes
-            const fullName = (item['nome completo'] != null && item['nome completo'] !== '')
-                ? String(item['nome completo'])
-                : (getEstudanteField(item, ['nome_completo', 'full_name', 'fullName']) ?? 'Aluno Sem Nome');
-            const moduleVal = getEstudanteField(item, ['módulo', 'modulo', 'module']) ?? 1;
-            const gradeVal = getEstudanteField(item, ['nota', 'grade']) ?? 1;
-            const planVal = getEstudanteField(item, ['plano', 'plan']) ?? 'integral';
-            return {
-                id: item.id,
-                fullName: String(fullName),
-                module: typeof moduleVal === 'number' ? moduleVal : (parseInt(moduleVal) || 1),
-                grade: typeof gradeVal === 'number' ? gradeVal : (parseInt(gradeVal) || 1),
-                plan: String(planVal),
-                email: item.email || '',
-                phone: item.phone || '',
-                subjectGrades: item.subject_grades || {},
-                subjectFreqs: item.subject_freqs || {},
-                paymentStatus: item.payment_status ?? null
-            };
-        }
-        return item;
-    }
-
-    // Detecta erro de rede (Supabase inacessível)
-    function isNetworkError(e) {
-        const msg = (e && e.message) || '';
-        return msg.includes('fetch') || msg.includes('NetworkError') || (e && e.name === 'TypeError' && msg.toLowerCase().includes('fetch'));
-    }
-
-    // Database Helpers (Abstraction layer for Supabase)
-    async function dbGet(collectionName) {
-        const table = tableMap[collectionName] || collectionName;
-        if (!supabase) return JSON.parse(localStorage.getItem(collectionName) || '[]');
+        // Inicialização do Cliente Supabase
+        let supabase = null;
         try {
-            console.log(`dbGet: Buscando dados de ${table}...`);
-            const { data, error } = await supabase.from(table).select('*');
-            if (error) {
-                console.error(`dbGet Erro (${table}):`, error);
-                throw error;
+            // Validar se a chave foi configurada (aceita tanto eyJ quanto sb_publishable)
+            const isKeyConfigured = SUPABASE_ANON_KEY &&
+                SUPABASE_ANON_KEY !== "COLE_AQUI_SUA_CHAVE_ANON_DO_SUPABASE" &&
+                (SUPABASE_ANON_KEY.startsWith('eyJ') || SUPABASE_ANON_KEY.startsWith('sb_'));
+
+            if (!isKeyConfigured) {
+                console.warn("⚠️ SUPABASE NÃO CONFIGURADO! Edite supabase-config.js e cole sua chave anon.");
+                console.warn("📖 Instruções: Acesse Supabase Dashboard > Settings > API > copie 'anon public'");
+                console.warn("🔄 Usando modo offline (localStorage) temporariamente.");
+            } else if (window.supabase && typeof window.supabase.createClient === 'function') {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log("✅ Supabase inicializado com sucesso!");
+                console.log("📡 Conectado ao projeto:", SUPABASE_URL.replace('https://', ''));
+            } else {
+                console.warn("⚠️ SDK do Supabase não encontrado. Usando modo offline (localStorage).");
             }
-            console.log(`dbGet: ${data.length} registros encontrados em ${table}`);
-            if (table === 'estudantes' && data.length > 0) console.log('Supabase estudantes (1ª linha, chaves):', Object.keys(data[0]), 'Exemplo:', data[0]);
-            return data.map(item => mapFromSupabase(item, collectionName));
-        } catch (e) {
-            console.error("Error fetching from Supabase fallback:", e);
-            if (isNetworkError(e)) console.warn("⚠️ Sem conexão com Supabase. Usando dados locais.");
-            return JSON.parse(localStorage.getItem(collectionName) || '[]');
-        }
-    }
-
-    async function dbAddItem(collectionName, item) {
-        const table = tableMap[collectionName] || collectionName;
-
-        // Modo offline (localStorage)
-        if (!supabase) {
-            console.log(`💾 Salvando em localStorage: ${collectionName}`);
-            const list = await dbGet(collectionName);
-            // Ensure ID is present for localStorage fallback
-            if (!item.id) item.id = Date.now();
-            list.push(item);
-            localStorage.setItem(collectionName, JSON.stringify(list));
-            console.log(`✅ Salvo no localStorage com ID: ${item.id}`);
-            return { success: true, id: item.id };
+        } catch (err) {
+            console.error("❌ Erro crítico ao inicializar Supabase:", err);
+            console.warn("🔄 Usando modo offline (localStorage).");
         }
 
-        // Modo online (Supabase)
-        try {
-            // For students, we let Supabase generate the ID
-            // For others, if the table has an auto-increment ID, we should remove our temporary ID
-            const itemToInsert = { ...item };
-            if (tableMap[collectionName] === 'estudantes' || itemToInsert.id) {
-                delete itemToInsert.id;
+        // Mapping frontend collection names to Supabase table names (conforme tabelas no seu projeto)
+        const tableMap = {
+            'sebitam-students': 'estudantes',
+            'sebitam-teachers': 'professores',
+            'sebitam-admins': 'administradores',
+            'sebitam-secretaries': 'secretarias'
+        };
+
+        // Mapping frontend fields to Supabase fields (for students)
+        function mapToSupabase(item, collectionName) {
+            if (!item) return item;
+            const mappedTable = tableMap[collectionName];
+            if (mappedTable === 'estudantes') {
+                // Tabela no Supabase usa colunas em inglês (full_name, module, grade, plan) - ver PERMISSOES-SCHEMA-PUBLIC.sql
+                const fullName = item.fullName ?? item.full_name ?? item['nome completo'] ?? item.nome_completo;
+                const moduleVal = item.module ?? item.módulo ?? item.modulo;
+                const gradeVal = item.grade ?? item.nota;
+                const planVal = item.plan ?? item.plano;
+                const mapped = {};
+                if (fullName != null && fullName !== '') mapped.full_name = String(fullName);
+                if (moduleVal != null) mapped.module = parseInt(moduleVal, 10) || 1;
+                if (gradeVal != null) mapped.grade = parseInt(gradeVal, 10) || 1;
+                if (planVal != null && planVal !== '') mapped.plan = String(planVal);
+                if (item.email !== undefined) mapped.email = item.email;
+                if (item.phone !== undefined) mapped.phone = item.phone;
+                if (item.subjectGrades !== undefined) mapped.subject_grades = item.subjectGrades;
+                if (item.subjectFreqs !== undefined) mapped.subject_freqs = item.subjectFreqs;
+                if (item.paymentStatus !== undefined) mapped.payment_status = item.paymentStatus;
+                return mapped;
             }
+            return item; // For others, assume direct mapping or handle as needed
+        }
 
-            const mapped = mapToSupabase(itemToInsert, collectionName);
-            console.log(`💾 Salvando em Supabase (${table}):`, mapped);
-
-            const { data, error } = await supabase.from(table).insert([mapped]).select();
-
-            if (error) {
-                console.error(`❌ Erro ao salvar em ${table}:`, error);
-                alert(`Erro ao salvar no banco de dados: ${error.message || 'Erro desconhecido'}`);
-                throw error;
+        // Para tabela estudantes: pega valor tentando várias chaves possíveis (Supabase pode retornar nomes diferentes)
+        function getEstudanteField(item, nameVariants) {
+            for (const key of nameVariants) {
+                const v = item[key];
+                if (v !== undefined && v !== null && v !== '') return v;
             }
+            const targets = nameVariants.map(v => v.toLowerCase().replace(/\s/g, '').replace(/[óô]/g, 'o'));
+            for (const k of Object.keys(item || {})) {
+                const kNorm = k.toLowerCase().replace(/\s/g, '').replace(/\u00a0/g, '').replace(/[óô]/g, 'o');
+                if (targets.some(t => kNorm === t || kNorm.includes(t) || t.includes(kNorm))) return item[k];
+            }
+            return undefined;
+        }
 
-            console.log(`✅ Salvo com sucesso em ${table}!`, data);
-            return { success: true, data: data };
-        } catch (e) {
-            if (isNetworkError(e)) {
-                console.warn("⚠️ Sem conexão com Supabase. Salvando localmente.");
+        function mapFromSupabase(item, collectionName) {
+            if (!item) return item;
+            const mappedTable = tableMap[collectionName];
+            if (mappedTable === 'estudantes') {
+                // Coluna no Supabase: "nome completo" (com espaço) - tentar essa chave primeiro e variantes
+                const fullName = (item['nome completo'] != null && item['nome completo'] !== '')
+                    ? String(item['nome completo'])
+                    : (getEstudanteField(item, ['nome_completo', 'full_name', 'fullName']) ?? 'Aluno Sem Nome');
+                const moduleVal = getEstudanteField(item, ['módulo', 'modulo', 'module']) ?? 1;
+                const gradeVal = getEstudanteField(item, ['nota', 'grade']) ?? 1;
+                const planVal = getEstudanteField(item, ['plano', 'plan']) ?? 'integral';
+                return {
+                    id: item.id,
+                    fullName: String(fullName),
+                    module: typeof moduleVal === 'number' ? moduleVal : (parseInt(moduleVal) || 1),
+                    grade: typeof gradeVal === 'number' ? gradeVal : (parseInt(gradeVal) || 1),
+                    plan: String(planVal),
+                    email: item.email || '',
+                    phone: item.phone || '',
+                    subjectGrades: item.subject_grades || {},
+                    subjectFreqs: item.subject_freqs || {},
+                    paymentStatus: item.payment_status ?? null
+                };
+            }
+            return item;
+        }
+
+        // Detecta erro de rede (Supabase inacessível)
+        function isNetworkError(e) {
+            const msg = (e && e.message) || '';
+            return msg.includes('fetch') || msg.includes('NetworkError') || (e && e.name === 'TypeError' && msg.toLowerCase().includes('fetch'));
+        }
+
+        // Safe parsing helper para localStorage
+        function safeLocalGet(key) {
+            try {
+                const val = localStorage.getItem(key);
+                if (!val || val === 'undefined' || val === 'null') return [];
+                const parsed = JSON.parse(val);
+                return Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
+            } catch (e) {
+                console.warn(`Erro no parse de ${key}:`, e);
+                return [];
+            }
+        }
+
+        // Database Helpers (Abstraction layer for Supabase)
+        async function dbGet(collectionName) {
+            const table = tableMap[collectionName] || collectionName;
+            if (!supabase) return safeLocalGet(collectionName);
+            try {
+                console.log(`dbGet: Buscando dados de ${table}...`);
+                const { data, error } = await supabase.from(table).select('*');
+                if (error) {
+                    console.error(`dbGet Erro (${table}):`, error);
+                    throw error;
+                }
+                if (!data) return [];
+                console.log(`dbGet: ${data.length} registros encontrados em ${table}`);
+                if (table === 'estudantes' && data.length > 0) console.log('Supabase estudantes (1ª linha, chaves):', Object.keys(data[0]), 'Exemplo:', data[0]);
+                return data.map(item => mapFromSupabase(item, collectionName));
+            } catch (e) {
+                console.error("Error fetching from Supabase fallback:", e);
+                if (isNetworkError(e)) console.warn("⚠️ Sem conexão com Supabase. Usando dados locais.");
+                return safeLocalGet(collectionName);
+            }
+        }
+
+        // dbGet com timeout - evita login travar se Supabase demorar
+        async function dbGetWithTimeout(collectionName, ms = 4000) {
+            try {
+                return await Promise.race([
+                    dbGet(collectionName),
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))
+                ]);
+            } catch (_) {
+                return safeLocalGet(collectionName);
+            }
+        }
+
+        async function dbAddItem(collectionName, item) {
+            const table = tableMap[collectionName] || collectionName;
+
+            // Modo offline (localStorage)
+            if (!supabase) {
+                console.log(`💾 Salvando em localStorage: ${collectionName}`);
                 const list = await dbGet(collectionName);
+                // Ensure ID is present for localStorage fallback
                 if (!item.id) item.id = Date.now();
                 list.push(item);
                 localStorage.setItem(collectionName, JSON.stringify(list));
-                alert("Sem conexão com o servidor. Dados salvos localmente e serão enviados quando a conexão voltar.");
+                console.log(`✅ Salvo no localStorage com ID: ${item.id}`);
                 return { success: true, id: item.id };
             }
-            console.error(`❌ Erro crítico ao salvar em ${table}:`, e);
-            throw e;
-        }
-    }
 
-    async function dbUpdateItem(collectionName, id, updates) {
-        const table = tableMap[collectionName] || collectionName;
+            // Modo online (Supabase)
+            try {
+                // For students, we let Supabase generate the ID
+                // For others, if the table has an auto-increment ID, we should remove our temporary ID
+                const itemToInsert = { ...item };
+                if (tableMap[collectionName] === 'estudantes' || itemToInsert.id) {
+                    delete itemToInsert.id;
+                }
 
-        // Modo offline (localStorage)
-        if (!supabase) {
-            console.log(`💾 Atualizando em localStorage: ${collectionName}, ID: ${id}`);
-            const list = await dbGet(collectionName);
-            const idx = list.findIndex(i => String(i.id) === String(id));
-            if (idx !== -1) {
-                list[idx] = { ...list[idx], ...updates };
-                localStorage.setItem(collectionName, JSON.stringify(list));
-                console.log(`✅ Atualizado no localStorage!`);
-                return { success: true };
-            } else {
-                console.warn(`⚠️ Item não encontrado no localStorage: ID ${id}`);
-                return { success: false, error: 'Item não encontrado' };
+                const mapped = mapToSupabase(itemToInsert, collectionName);
+                console.log(`💾 Salvando em Supabase (${table}):`, mapped);
+
+                const { data, error } = await supabase.from(table).insert([mapped]).select();
+
+                if (error) {
+                    console.error(`❌ Erro ao salvar em ${table}:`, error);
+                    alert(`Erro ao salvar no banco de dados: ${error.message || 'Erro desconhecido'}`);
+                    throw error;
+                }
+
+                console.log(`✅ Salvo com sucesso em ${table}!`, data);
+                return { success: true, data: data };
+            } catch (e) {
+                if (isNetworkError(e)) {
+                    console.warn("⚠️ Sem conexão com Supabase. Salvando localmente.");
+                    const list = await dbGet(collectionName);
+                    if (!item.id) item.id = Date.now();
+                    list.push(item);
+                    localStorage.setItem(collectionName, JSON.stringify(list));
+                    alert("Sem conexão com o servidor. Dados salvos localmente e serão enviados quando a conexão voltar.");
+                    return { success: true, id: item.id };
+                }
+                console.error(`❌ Erro crítico ao salvar em ${table}:`, e);
+                throw e;
             }
         }
 
-        // Modo online (Supabase)
-        try {
-            const mapped = mapToSupabase(updates, collectionName);
-            // Supabase often expects numeric IDs for integer primary keys
-            const queryId = isNaN(id) ? id : parseInt(id);
+        async function dbUpdateItem(collectionName, id, updates) {
+            const table = tableMap[collectionName] || collectionName;
 
-            console.log(`💾 Atualizando em Supabase (${table}), ID: ${queryId}:`, mapped);
-
-            const { data, error } = await supabase.from(table).update(mapped).eq('id', queryId).select();
-
-            if (error) {
-                console.error(`❌ Erro ao atualizar em ${table}:`, error);
-                alert(`Erro ao atualizar no banco de dados: ${error.message || 'Erro desconhecido'}`);
-                throw error;
-            }
-
-            console.log(`✅ Atualizado com sucesso em ${table}!`, data);
-            return { success: true, data: data };
-        } catch (e) {
-            if (isNetworkError(e)) {
+            // Modo offline (localStorage)
+            if (!supabase) {
+                console.log(`💾 Atualizando em localStorage: ${collectionName}, ID: ${id}`);
                 const list = await dbGet(collectionName);
                 const idx = list.findIndex(i => String(i.id) === String(id));
                 if (idx !== -1) {
                     list[idx] = { ...list[idx], ...updates };
                     localStorage.setItem(collectionName, JSON.stringify(list));
-                    alert("Sem conexão. Atualização salva localmente.");
+                    console.log(`✅ Atualizado no localStorage!`);
                     return { success: true };
+                } else {
+                    console.warn(`⚠️ Item não encontrado no localStorage: ID ${id}`);
+                    return { success: false, error: 'Item não encontrado' };
                 }
             }
-            console.error(`❌ Erro crítico ao atualizar em ${table}:`, e);
-            throw e;
-        }
-    }
 
-    async function dbDeleteItem(collectionName, id) {
-        const table = tableMap[collectionName] || collectionName;
+            // Modo online (Supabase)
+            try {
+                const mapped = mapToSupabase(updates, collectionName);
+                // Supabase often expects numeric IDs for integer primary keys
+                const queryId = isNaN(id) ? id : parseInt(id);
 
-        // Modo offline (localStorage)
-        if (!supabase) {
-            console.log(`🗑️ Excluindo de localStorage: ${collectionName}, ID: ${id}`);
-            const list = await dbGet(collectionName);
-            const filtered = list.filter(i => String(i.id) !== String(id));
-            localStorage.setItem(collectionName, JSON.stringify(filtered));
-            console.log(`✅ Excluído do localStorage!`);
-            return { success: true };
-        }
+                console.log(`💾 Atualizando em Supabase (${table}), ID: ${queryId}:`, mapped);
 
-        // Modo online (Supabase)
-        try {
-            // Use numeric ID if possible to avoid type mismatch with SERIAL columns
-            const queryId = isNaN(id) ? id : parseInt(id);
+                const { data, error } = await supabase.from(table).update(mapped).eq('id', queryId).select();
 
-            console.log(`🗑️ Excluindo de Supabase (${table}), ID: ${queryId}`);
+                if (error) {
+                    console.error(`❌ Erro ao atualizar em ${table}:`, error);
+                    alert(`Erro ao atualizar no banco de dados: ${error.message || 'Erro desconhecido'}`);
+                    throw error;
+                }
 
-            const { data, error } = await supabase.from(table).delete().eq('id', queryId).select();
-
-            if (error) {
-                console.error(`❌ Erro ao excluir de ${table}:`, error);
-                alert(`Erro ao excluir do banco de dados: ${error.message || 'Erro desconhecido'}`);
-                throw error;
+                console.log(`✅ Atualizado com sucesso em ${table}!`, data);
+                return { success: true, data: data };
+            } catch (e) {
+                if (isNetworkError(e)) {
+                    const list = await dbGet(collectionName);
+                    const idx = list.findIndex(i => String(i.id) === String(id));
+                    if (idx !== -1) {
+                        list[idx] = { ...list[idx], ...updates };
+                        localStorage.setItem(collectionName, JSON.stringify(list));
+                        alert("Sem conexão. Atualização salva localmente.");
+                        return { success: true };
+                    }
+                }
+                console.error(`❌ Erro crítico ao atualizar em ${table}:`, e);
+                throw e;
             }
+        }
 
-            console.log(`✅ Excluído com sucesso de ${table}!`, data);
-            return { success: true, data: data };
-        } catch (e) {
-            if (isNetworkError(e)) {
+        async function dbDeleteItem(collectionName, id) {
+            const table = tableMap[collectionName] || collectionName;
+
+            // Modo offline (localStorage)
+            if (!supabase) {
+                console.log(`🗑️ Excluindo de localStorage: ${collectionName}, ID: ${id}`);
                 const list = await dbGet(collectionName);
                 const filtered = list.filter(i => String(i.id) !== String(id));
                 localStorage.setItem(collectionName, JSON.stringify(filtered));
-                alert("Sem conexão. Exclusão aplicada localmente.");
+                console.log(`✅ Excluído do localStorage!`);
                 return { success: true };
             }
-            console.error(`❌ Erro crítico ao excluir de ${table}:`, e);
-            throw e;
-        }
-    }
 
-    // Role Mapping
-    const roleDetails = {
-        admin: { name: 'Diretoria SEBITAM', label: 'Administrador' },
-        secretary: { name: 'Secretaria Acadêmica', label: 'Secretaria' },
-        teacher: { name: 'Corpo Docente', label: 'Professor' },
-        student: { name: 'Acesso Aluno', label: 'Aluno' }
-    };
+            // Modo online (Supabase)
+            try {
+                // Use numeric ID if possible to avoid type mismatch with SERIAL columns
+                const queryId = isNaN(id) ? id : parseInt(id);
 
-    // Theme Logic
-    function applySavedTheme() {
-        const savedTheme = localStorage.getItem('sebitam-theme') || 'professional';
-        document.body.classList.remove('theme-man', 'theme-woman', 'theme-professional', 'theme-elegant');
-        document.body.classList.add(`theme-${savedTheme}`);
-    }
+                console.log(`🗑️ Excluindo de Supabase (${table}), ID: ${queryId}`);
 
-    function setLoginTheme() {
-        document.body.classList.remove('theme-man', 'theme-woman', 'theme-professional', 'theme-elegant');
-        document.body.classList.add('theme-man');
-    }
+                const { data, error } = await supabase.from(table).delete().eq('id', queryId).select();
 
-    // Inicialmente, manter o tema preto para o login
-    setLoginTheme();
+                if (error) {
+                    console.error(`❌ Erro ao excluir de ${table}:`, error);
+                    alert(`Erro ao excluir do banco de dados: ${error.message || 'Erro desconhecido'}`);
+                    throw error;
+                }
 
-    // Login Type Selector
-    const loginTypeInput = document.getElementById('login-type');
-    document.querySelectorAll('.login-type-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.login-type-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            if (loginTypeInput) loginTypeInput.value = btn.dataset.loginType;
-            if (window.lucide) lucide.createIcons();
-        });
-    });
-
-    // Login Logic
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const loginEmail = document.getElementById('login-email').value.trim().toLowerCase();
-        const loginName = document.getElementById('login-name').value.trim();
-        const loginType = (document.getElementById('login-type') || {}).value || 'sebitam';
-
-        if (!loginEmail || !loginName) {
-            alert('Por favor, preencha todos os campos.');
-            return;
-        }
-
-        currentUser.email = loginEmail;
-        currentUser.name = loginName;
-        currentUser.loginType = loginType;
-        let userFound = false;
-
-        try {
-            // ⭐ SUPER ADMIN — edukadoshmda@gmail.com tem permissão total em SEBITAM e Escola IBMA
-            const SUPER_ADMIN_EMAILS = ['edukadoshmda@gmail.com'];
-            if (SUPER_ADMIN_EMAILS.includes(loginEmail)) {
-                currentUser.role = 'admin';
-                currentUser.name = loginName || 'Administrador';
-                currentUser.loginType = loginType; // mantém o tipo de login escolhido
-                currentUser.isSuperAdmin = true;
-                userFound = true;
-                console.log('✅ Super Admin autenticado:', loginEmail, '| Login:', loginType);
+                console.log(`✅ Excluído com sucesso de ${table}!`, data);
+                return { success: true, data: data };
+            } catch (e) {
+                if (isNetworkError(e)) {
+                    const list = await dbGet(collectionName);
+                    const filtered = list.filter(i => String(i.id) !== String(id));
+                    localStorage.setItem(collectionName, JSON.stringify(filtered));
+                    alert("Sem conexão. Exclusão aplicada localmente.");
+                    return { success: true };
+                }
+                console.error(`❌ Erro crítico ao excluir de ${table}:`, e);
+                throw e;
             }
+        }
 
-            // PRIORIDADE: Quem está cadastrado como admin, professor ou secretário no SEBITAM
-            // (só se NÃO entrou pelo login IBMA)
-            if (!userFound) {
-                const staffTables = [
-                    { key: 'sebitam-admins', role: 'admin' },
-                    { key: 'sebitam-secretaries', role: 'secretary' },
-                    { key: 'sebitam-teachers', role: 'teacher' }
-                ];
-                for (const t of staffTables) {
-                    const data = await dbGet(t.key);
-                    const match = data.find(u => (u.email && u.email.toLowerCase() === loginEmail));
+        // Role Mapping
+        const roleDetails = {
+            admin: { name: 'Diretoria SEBITAM', label: 'Administrador' },
+            secretary: { name: 'Secretaria Acadêmica', label: 'Secretaria' },
+            teacher: { name: 'Corpo Docente', label: 'Professor' },
+            student: { name: 'Acesso Aluno', label: 'Aluno' }
+        };
+
+        // Theme Logic
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('sebitam-theme') || 'professional';
+            document.body.classList.remove('theme-man', 'theme-woman', 'theme-professional', 'theme-elegant');
+            document.body.classList.add(`theme-${savedTheme}`);
+        }
+
+        function setLoginTheme() {
+            document.body.classList.remove('theme-man', 'theme-woman', 'theme-professional', 'theme-elegant');
+            document.body.classList.add('theme-man');
+        }
+
+        // Inicialmente, manter o tema preto para o login
+        setLoginTheme();
+
+        // Login Type Selector
+        const loginTypeInput = document.getElementById('login-type');
+        document.querySelectorAll('.login-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.login-type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                if (loginTypeInput) loginTypeInput.value = btn.dataset.loginType;
+                if (window.lucide) window.lucide.createIcons();
+            });
+        });
+
+        // Login Logic
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loginEmail = (document.getElementById('login-email')?.value || '').trim().toLowerCase();
+            let loginName = (document.getElementById('login-name')?.value || '').trim();
+            const loginType = (document.getElementById('login-type') || {}).value || 'sebitam';
+
+            if (!loginEmail) {
+                alert('Digite seu e-mail.');
+                return;
+            }
+            if (!loginName) loginName = 'Usuário'; // Nome opcional
+
+            currentUser.email = loginEmail;
+            currentUser.name = loginName;
+            currentUser.loginType = loginType;
+            let userFound = false;
+
+            try {
+                // ⭐ SUPER ADMIN — edukadoshmda@gmail.com tem permissão total em SEBITAM e Escola IBMA
+                const SUPER_ADMIN_EMAILS = ['edukadoshmda@gmail.com'];
+                if (SUPER_ADMIN_EMAILS.includes(loginEmail)) {
+                    currentUser.role = 'admin';
+                    currentUser.name = loginName || 'Administrador';
+                    currentUser.loginType = loginType; // mantém o tipo de login escolhido
+                    currentUser.isSuperAdmin = true;
+                    userFound = true;
+                    console.log('✅ Super Admin autenticado:', loginEmail, '| Login:', loginType);
+                }
+
+                // PRIORIDADE: Quem está cadastrado como admin, professor ou secretário no SEBITAM
+                // (só se NÃO entrou pelo login IBMA)
+                if (!userFound) {
+                    const staffTables = [
+                        { key: 'sebitam-admins', role: 'admin' },
+                        { key: 'sebitam-secretaries', role: 'secretary' },
+                        { key: 'sebitam-teachers', role: 'teacher' }
+                    ];
+                    for (const t of staffTables) {
+                        const data = await dbGetWithTimeout(t.key);
+                        const match = data.find(u => (u.email && u.email.toLowerCase() === loginEmail));
+                        if (match) {
+                            currentUser.role = t.role;
+                            currentUser.name = match.fullName || match.name || loginName;
+                            currentUser.id = match.id;
+                            currentUser.photo = match.photo || null;
+                            currentUser.loginType = 'sebitam';
+                            userFound = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Se não é staff, verificar alunos (apenas no Login SEBITAM)
+                if (!userFound && loginType !== 'escolas-ibma') {
+                    const students = await dbGetWithTimeout('sebitam-students');
+                    const match = students.find(u => (u.email && u.email.toLowerCase() === loginEmail));
                     if (match) {
-                        currentUser.role = t.role;
+                        currentUser.role = 'student';
                         currentUser.name = match.fullName || match.name || loginName;
                         currentUser.id = match.id;
                         currentUser.photo = match.photo || null;
-                        currentUser.loginType = 'sebitam';
+                        currentUser.grade = match.grade || 1;
                         userFound = true;
-                        break;
                     }
                 }
-            }
 
-            // Se não é staff, verificar alunos (apenas no Login SEBITAM)
-            if (!userFound && loginType !== 'escolas-ibma') {
-                const students = await dbGet('sebitam-students');
-                const match = students.find(u => (u.email && u.email.toLowerCase() === loginEmail));
-                if (match) {
+                // Login Escolas IBMA: verificar professores cadastrados
+                if (!userFound && loginType === 'escolas-ibma') {
+                    const profsIbma = safeLocalGet('professores-escolas-ibma');
+                    const matchProf = profsIbma.find(p => p.email && p.email.toLowerCase() === loginEmail);
+                    if (matchProf) {
+                        currentUser.role = 'teacher';
+                        currentUser.name = matchProf.fullName || matchProf.name || loginName;
+                        currentUser.id = matchProf.id;
+                        currentUser.loginType = 'escolas-ibma';
+                        userFound = true;
+                    }
+                }
+
+                // Login Escolas IBMA: quem não é staff cadastrado entra como aluno
+                if (!userFound && loginType === 'escolas-ibma') {
+                    userFound = true;
                     currentUser.role = 'student';
-                    currentUser.name = match.fullName || match.name || loginName;
-                    currentUser.id = match.id;
-                    currentUser.photo = match.photo || null;
-                    currentUser.grade = match.grade || 1;
-                    userFound = true;
                 }
+            } catch (err) {
+                console.error("Erro ao verificar usuário no banco:", err);
             }
 
-            // Login Escolas IBMA: verificar professores cadastrados
-            if (!userFound && loginType === 'escolas-ibma') {
-                const profsIbma = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]');
-                const matchProf = profsIbma.find(p => p.email && p.email.toLowerCase() === loginEmail);
-                if (matchProf) {
-                    currentUser.role = 'teacher';
-                    currentUser.name = matchProf.fullName || matchProf.name || loginName;
-                    currentUser.id = matchProf.id;
-                    currentUser.loginType = 'escolas-ibma';
-                    userFound = true;
-                }
-            }
-
-            // Login Escolas IBMA: quem não é staff cadastrado entra como aluno
-            if (!userFound && loginType === 'escolas-ibma') {
-                userFound = true;
+            if (!userFound) {
                 currentUser.role = 'student';
+                currentUser.grade = 1;
             }
-        } catch (err) {
-            console.error("Erro ao verificar usuário no banco:", err);
-        }
 
-        if (!userFound) {
-            currentUser.role = 'student';
-            currentUser.grade = 1;
-        }
+            try {
+                // Troca de tela IMEDIATA (feedback visual antes de renderView)
+                if (loginScreen) loginScreen.classList.remove('active');
+                if (dashboardScreen) dashboardScreen.classList.add('active');
+                if (refreshUIPermissions) refreshUIPermissions(currentUser.role);
+                if (applySavedTheme) applySavedTheme();
+                if (window.lucide) window.lucide.createIcons();
+                document.body.classList.toggle('login-escolas-ibma', currentUser.loginType === 'escolas-ibma');
+                document.body.classList.toggle('super-admin-ibma', !!(currentUser.loginType === 'escolas-ibma' && currentUser.isSuperAdmin));
+                const overviewLabel = document.getElementById('nav-overview-label');
+                if (overviewLabel) overviewLabel.textContent = (currentUser.loginType === 'escolas-ibma' && !currentUser.isSuperAdmin) ? 'Cadastro de Professores e Alunos' : 'Visão Geral';
+                const brandText = document.getElementById('sidebar-brand-text');
+                if (brandText) brandText.textContent = currentUser.loginType === 'escolas-ibma' ? 'Escola IBMA' : 'SEBITAM';
 
-        refreshUIPermissions(currentUser.role);
-        loginScreen.classList.remove('active');
-        dashboardScreen.classList.add('active');
-        applySavedTheme();
-        lucide.createIcons();
-        document.body.classList.toggle('login-escolas-ibma', currentUser.loginType === 'escolas-ibma');
-        document.body.classList.toggle('super-admin-ibma', !!(currentUser.loginType === 'escolas-ibma' && currentUser.isSuperAdmin));
-        const overviewLabel = document.getElementById('nav-overview-label');
-        if (overviewLabel) overviewLabel.textContent = (currentUser.loginType === 'escolas-ibma' && !currentUser.isSuperAdmin) ? 'Cadastro de Professores e Alunos' : 'Visão Geral';
-        const brandText = document.getElementById('sidebar-brand-text');
-        if (brandText) brandText.textContent = currentUser.loginType === 'escolas-ibma' ? 'Escola IBMA' : 'SEBITAM';
-
-        if (currentUser.loginType === 'escolas-ibma') {
-            await renderView('overview');
-        } else if (userFound) {
-            console.log(`Usuário conhecido (${currentUser.role}) logado - Indo para Visão Geral`);
-            await renderView('overview');
-        } else {
-            console.log('Novo usuário detectado - Redirecionando para Cadastro');
-            await renderView('enrollment');
-        }
-    });
-
-    // Logout Logic
-
-    const handleLogout = () => {
-        dashboardScreen.classList.remove('active');
-        loginScreen.classList.add('active');
-        setLoginTheme();
-        currentUser.loginType = 'sebitam';
-        currentUser.isSuperAdmin = false;
-        document.body.classList.remove('login-escolas-ibma', 'super-admin-ibma');
-        const overviewLabel = document.getElementById('nav-overview-label');
-        if (overviewLabel) overviewLabel.textContent = 'Visão Geral';
-        const brandText = document.getElementById('sidebar-brand-text');
-        if (brandText) brandText.textContent = 'SEBITAM';
-        // Clear all role-specific classes from body
-        document.body.classList.remove('user-role-admin', 'user-role-secretary', 'user-role-teacher', 'user-role-student');
-
-        // Reset History
-        viewHistory = [];
-        currentView = 'login';
-        currentData = null;
-    };
-
-    logoutBtn.addEventListener('click', handleLogout);
-    const headerLogoutBtn = document.getElementById('header-logout-btn');
-    if (headerLogoutBtn) {
-        headerLogoutBtn.addEventListener('click', handleLogout);
-    }
-
-
-
-    // Header Back Button Logic
-    const headBackBtn = document.getElementById('back-btn');
-    if (headBackBtn) {
-        headBackBtn.addEventListener('click', () => {
-            if (viewHistory.length > 0) {
-                const lastState = viewHistory.pop();
-                renderView(lastState.view, lastState.data, false);
-            } else {
-                renderView('overview', null, false);
+                if (currentUser.loginType === 'escolas-ibma') {
+                    await renderView('overview');
+                } else if (userFound) {
+                    await renderView('overview');
+                } else {
+                    await renderView('enrollment');
+                }
+            } catch (err) {
+                console.error('Erro ao entrar:', err);
+                alert('Erro ao entrar. Recarregue a página (Ctrl+F5) e tente de novo.');
+                if (loginScreen) loginScreen.classList.add('active');
+                if (dashboardScreen) dashboardScreen.classList.remove('active');
             }
         });
-    }
 
-    // Nav Item Clicks
-    navItems.forEach(item => {
-        item.addEventListener('click', async (e) => {
-            if (item.classList.contains('external-nav')) return;
-            e.preventDefault();
-            navItems.forEach(n => n.classList.remove('active'));
-            item.classList.add('active');
+        // Logout Logic
 
-            // Mobile: Close sidebar on selection
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            if (window.innerWidth <= 768) {
+        const handleLogout = () => {
+            if (dashboardScreen) dashboardScreen.classList.remove('active');
+            if (loginScreen) loginScreen.classList.add('active');
+            setLoginTheme();
+            currentUser.loginType = 'sebitam';
+            currentUser.isSuperAdmin = false;
+            document.body.classList.remove('login-escolas-ibma', 'super-admin-ibma');
+            const overviewLabel = document.getElementById('nav-overview-label');
+            if (overviewLabel) overviewLabel.textContent = 'Visão Geral';
+            const brandText = document.getElementById('sidebar-brand-text');
+            if (brandText) brandText.textContent = 'SEBITAM';
+            // Clear all role-specific classes from body
+            document.body.classList.remove('user-role-admin', 'user-role-secretary', 'user-role-teacher', 'user-role-student');
+
+            // Reset History
+            viewHistory = [];
+            currentView = 'login';
+            currentData = null;
+        };
+
+        logoutBtn.addEventListener('click', handleLogout);
+        const headerLogoutBtn = document.getElementById('header-logout-btn');
+        if (headerLogoutBtn) {
+            headerLogoutBtn.addEventListener('click', handleLogout);
+        }
+
+
+
+        // Header Back Button Logic
+        const headBackBtn = document.getElementById('back-btn');
+        if (headBackBtn) {
+            headBackBtn.addEventListener('click', () => {
+                if (viewHistory.length > 0) {
+                    const lastState = viewHistory.pop();
+                    renderView(lastState.view, lastState.data, false);
+                } else {
+                    renderView('overview', null, false);
+                }
+            });
+        }
+
+        // Nav Item Clicks
+        navItems.forEach(item => {
+            item.addEventListener('click', async (e) => {
+                if (item.classList.contains('external-nav')) return;
+                e.preventDefault();
+                navItems.forEach(n => n.classList.remove('active'));
+                item.classList.add('active');
+
+                // Mobile: Close sidebar on selection
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebar-overlay');
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                }
+
+                const view = item.getAttribute('data-view');
+                await renderView(view);
+            });
+        });
+
+        // Mobile Menu Logic
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebarClose = document.getElementById('sidebar-close');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const sidebar = document.getElementById('sidebar');
+
+        if (menuToggle) {
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.add('active');
+                sidebarOverlay.classList.add('active');
+            });
+        }
+
+        if (sidebarClose) {
+            sidebarClose.addEventListener('click', () => {
                 sidebar.classList.remove('active');
-                overlay.classList.remove('active');
+                sidebarOverlay.classList.remove('active');
+            });
+        }
+
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('active');
+                sidebarOverlay.classList.remove('active');
+            });
+        }
+
+        function refreshUIPermissions(role) {
+            const rd = roleDetails[role] || roleDetails.student;
+            if (userNameEl) userNameEl.textContent = currentUser.name || 'Usuário';
+            if (userRoleEl) userRoleEl.textContent = rd.label;
+
+            // Update Avatar
+            if (window.updateAvatarUI) {
+                window.updateAvatarUI(currentUser);
             }
 
-            const view = item.getAttribute('data-view');
-            await renderView(view);
-        });
-    });
+            // Remove all previous role classes from body
+            document.body.classList.remove('user-role-admin', 'user-role-secretary', 'user-role-teacher', 'user-role-student');
+            document.body.classList.add(`user-role-${role}`);
 
-    // Mobile Menu Logic
-    const menuToggle = document.getElementById('menu-toggle');
-    const sidebarClose = document.getElementById('sidebar-close');
-    const sidebarOverlay = document.getElementById('sidebar-overlay');
-    const sidebar = document.getElementById('sidebar');
-
-    if (menuToggle) {
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.add('active');
-            sidebarOverlay.classList.add('active');
-        });
-    }
-
-    if (sidebarClose) {
-        sidebarClose.addEventListener('click', () => {
-            sidebar.classList.remove('active');
-            sidebarOverlay.classList.remove('active');
-        });
-    }
-
-    if (sidebarOverlay) {
-        sidebarOverlay.addEventListener('click', () => {
-            sidebar.classList.remove('active');
-            sidebarOverlay.classList.remove('active');
-        });
-    }
-
-    function refreshUIPermissions(role) {
-        console.log("Applying UI Permissions for role:", role);
-        userNameEl.textContent = currentUser.name;
-        userRoleEl.textContent = roleDetails[role].label;
-
-        // Update Avatar
-        if (window.updateAvatarUI) {
-            window.updateAvatarUI(currentUser);
+            // Re-trigger lucide to ensure icons show on updated elements
+            if (window.lucide) window.lucide.createIcons();
         }
 
-        // Remove all previous role classes from body
-        document.body.classList.remove('user-role-admin', 'user-role-secretary', 'user-role-teacher', 'user-role-student');
-        document.body.classList.add(`user-role-${role}`);
+        const subjectMap = {
+            1: { title: 'Módulo 1: Fundamentos', subs: ['Bibliologia', 'Teontologia', 'Introdução N.T', 'Introdução A.T'] },
+            2: { title: 'Módulo 2: Contexto Histórico', subs: ['Geografia Bíblica', 'Hermenêutica', 'Período Inter bíblico', 'Ética Cristã'] },
+            3: { title: 'Módulo 3: Doutrinas Específica', subs: ['Soteriologia', 'Eclesiologia', 'Escatologia', 'Homilética'] },
+            4: { title: 'Módulo 4: Teologia Aplicada', subs: ['Teologia Contemporânea', 'In. T. Bíblica A.T', 'In. T. Bíblica N.T', 'Teologia Pastoral'] },
+            5: { title: 'Módulo 5: Prática Pastoral', subs: ['Exegese Bíblica', 'Psicologia Pastoral'] },
+        };
 
-        // Re-trigger lucide to ensure icons show on updated elements
-        if (window.lucide) window.lucide.createIcons();
-    }
+        async function generateCertificate(studentId) {
+            console.log("Gerando certificado para ID:", studentId);
+            const students = await dbGet('sebitam-students');
+            const student = students.find(item => String(item.id) === String(studentId));
+            if (!student) {
+                alert('Erro: Aluno não encontrado para gerar certificado (ID: ' + studentId + ')');
+                return;
+            }
 
-    const subjectMap = {
-        1: { title: 'Módulo 1: Fundamentos', subs: ['Bibliologia', 'Teontologia', 'Introdução N.T', 'Introdução A.T'] },
-        2: { title: 'Módulo 2: Contexto Histórico', subs: ['Geografia Bíblica', 'Hermenêutica', 'Período Inter bíblico', 'Ética Cristã'] },
-        3: { title: 'Módulo 3: Doutrinas Específica', subs: ['Soteriologia', 'Eclesiologia', 'Escatologia', 'Homilética'] },
-        4: { title: 'Módulo 4: Teologia Aplicada', subs: ['Teologia Contemporânea', 'In. T. Bíblica A.T', 'In. T. Bíblica N.T', 'Teologia Pastoral'] },
-        5: { title: 'Módulo 5: Prática Pastoral', subs: ['Exegese Bíblica', 'Psicologia Pastoral'] },
-    };
+            // Gerar matrícula automática se não existir
+            if (!student.enrollment) {
+                const enrollmentNumber = `SEBITAM-${String(student.id).padStart(4, '0')}`;
+                student.enrollment = enrollmentNumber;
+                await dbUpdateItem('sebitam-students', studentId, { enrollment: enrollmentNumber });
+            }
 
-    async function generateCertificate(studentId) {
-        console.log("Gerando certificado para ID:", studentId);
-        const students = await dbGet('sebitam-students');
-        const student = students.find(item => String(item.id) === String(studentId));
-        if (!student) {
-            alert('Erro: Aluno não encontrado para gerar certificado (ID: ' + studentId + ')');
-            return;
-        }
-
-        // Gerar matrícula automática se não existir
-        if (!student.enrollment) {
-            const enrollmentNumber = `SEBITAM-${String(student.id).padStart(4, '0')}`;
-            student.enrollment = enrollmentNumber;
-            await dbUpdateItem('sebitam-students', studentId, { enrollment: enrollmentNumber });
-        }
-
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return alert('Por favor, libere os pop-ups para imprimir o certificado.');
-        printWindow.document.write(`
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) return alert('Por favor, libere os pop-ups para imprimir o certificado.');
+            printWindow.document.write(`
             <html>
                 <head>
                     <title>Certificado - ${student.fullName}</title>
@@ -656,23 +689,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 </body>
             </html>
         `);
-        printWindow.document.close();
-    }
-
-    async function printAcademicHistory(studentId) {
-        console.log("Gerando histórico para ID:", studentId);
-        const students = await dbGet('sebitam-students');
-        const student = students.find(item => String(item.id) === String(studentId));
-        if (!student) {
-            alert('Erro: Aluno não encontrado para o histórico (ID: ' + studentId + ')');
-            return;
+            printWindow.document.close();
         }
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return alert('Por favor, libere os pop-ups para ver o histórico.');
-        const nameCap = student.fullName.toUpperCase();
-        const date = new Date().toLocaleDateString('pt-BR');
 
-        printWindow.document.write(`
+        async function printAcademicHistory(studentId) {
+            console.log("Gerando histórico para ID:", studentId);
+            const students = await dbGet('sebitam-students');
+            const student = students.find(item => String(item.id) === String(studentId));
+            if (!student) {
+                alert('Erro: Aluno não encontrado para o histórico (ID: ' + studentId + ')');
+                return;
+            }
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) return alert('Por favor, libere os pop-ups para ver o histórico.');
+            const nameCap = student.fullName.toUpperCase();
+            const date = new Date().toLocaleDateString('pt-BR');
+
+            printWindow.document.write(`
             <html>
                 <head>
                     <title> </title>
@@ -718,14 +751,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         </thead>
                         <tbody>
                             ${Object.entries(subjectMap).map(([module, data]) => {
-            return `
+                return `
                                     <tr class="module-row"><td colspan="5" style="padding: 4px 8px;">${data.title}</td></tr>
                                     ${data.subs.map(sub => {
-                const grade = (student.subjectGrades && student.subjectGrades[sub]) || '-';
-                const isApproved = grade >= 7;
-                const status = grade === '-' ? 'CURSANDO' : (isApproved ? 'APROVADO' : 'REPROVADO');
+                    const grade = (student.subjectGrades && student.subjectGrades[sub]) || '-';
+                    const isApproved = grade >= 7;
+                    const status = grade === '-' ? 'CURSANDO' : (isApproved ? 'APROVADO' : 'REPROVADO');
 
-                return `
+                    return `
                                             <tr>
                                                 <td style="padding-right: 2px;">${sub}</td>
                                                 <td style="text-align:center; width: 35px; padding-left: 0px; padding-right: 0px;">${module}</td>
@@ -734,9 +767,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 <td class="${isApproved ? 'status-approved' : 'status-pending'}" style="text-align:center">${status}</td>
                                             </tr>
                                         `;
-            }).join('')}
+                }).join('')}
                                 `;
-        }).join('')}
+            }).join('')}
                         </tbody>
                     </table>
 
@@ -748,45 +781,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 </body>
             </html>
         `);
-        printWindow.document.close();
-    }
-
-    // Função para visualizar o histórico escolar de forma interativa
-    async function viewAcademicHistory(studentId) {
-        console.log("Abrindo histórico escolar para ID:", studentId);
-        const students = await dbGet('sebitam-students');
-        const student = students.find(item => String(item.id) === String(studentId));
-        if (!student) {
-            alert('Erro: Aluno não encontrado (ID: ' + studentId + ')');
-            return;
+            printWindow.document.close();
         }
 
-        const nameCap = student.fullName.toUpperCase();
-        const today = new Date().toLocaleDateString('pt-BR');
+        // Função para visualizar o histórico escolar de forma interativa
+        async function viewAcademicHistory(studentId) {
+            console.log("Abrindo histórico escolar para ID:", studentId);
+            const students = await dbGet('sebitam-students');
+            const student = students.find(item => String(item.id) === String(studentId));
+            if (!student) {
+                alert('Erro: Aluno não encontrado (ID: ' + studentId + ')');
+                return;
+            }
 
-        // Calcular totais
-        let totalDisciplinas = 0;
-        let totalAprovadas = 0;
-        let somaNotas = 0;
-        let countNotas = 0;
+            const nameCap = student.fullName.toUpperCase();
+            const today = new Date().toLocaleDateString('pt-BR');
 
-        Object.entries(subjectMap).forEach(([module, data]) => {
-            data.subs.forEach(sub => {
-                totalDisciplinas++;
-                const grade = (student.subjectGrades && student.subjectGrades[sub]) || 0;
-                if (grade >= 7) totalAprovadas++;
-                if (grade > 0) {
-                    somaNotas += parseFloat(grade);
-                    countNotas++;
-                }
+            // Calcular totais
+            let totalDisciplinas = 0;
+            let totalAprovadas = 0;
+            let somaNotas = 0;
+            let countNotas = 0;
+
+            Object.entries(subjectMap).forEach(([module, data]) => {
+                data.subs.forEach(sub => {
+                    totalDisciplinas++;
+                    const grade = (student.subjectGrades && student.subjectGrades[sub]) || 0;
+                    if (grade >= 7) totalAprovadas++;
+                    if (grade > 0) {
+                        somaNotas += parseFloat(grade);
+                        countNotas++;
+                    }
+                });
             });
-        });
 
-        const mediaGeral = countNotas > 0 ? (somaNotas / countNotas).toFixed(2) : '0.00';
-        const percentualConclusao = ((totalAprovadas / totalDisciplinas) * 100).toFixed(1);
+            const mediaGeral = countNotas > 0 ? (somaNotas / countNotas).toFixed(2) : '0.00';
+            const percentualConclusao = ((totalAprovadas / totalDisciplinas) * 100).toFixed(1);
 
-        const contentBody = document.getElementById('dynamic-content');
-        contentBody.innerHTML = `
+            const contentBody = document.getElementById('dynamic-content');
+            contentBody.innerHTML = `
             <div class="view-header">
                 <button class="btn-primary" id="back-to-classes" style="width: auto; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                     <i data-lucide="arrow-left"></i> Voltar
@@ -869,14 +902,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </td>
                                 </tr>
                                 ${data.subs.map(sub => {
-            const grade = (student.subjectGrades && student.subjectGrades[sub]) || 0;
-            const freq = (student.subjectFreqs && student.subjectFreqs[sub]) || 0;
-            const isApproved = grade >= 7 && freq >= 75;
-            const status = grade === 0 ? 'CURSANDO' : (isApproved ? 'APROVADO' : 'REPROVADO');
-            const statusColor = grade === 0 ? '#94a3b8' : (isApproved ? '#16a34a' : '#dc2626');
-            const statusBg = grade === 0 ? 'rgba(148, 163, 184, 0.1)' : (isApproved ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)');
+                const grade = (student.subjectGrades && student.subjectGrades[sub]) || 0;
+                const freq = (student.subjectFreqs && student.subjectFreqs[sub]) || 0;
+                const isApproved = grade >= 7 && freq >= 75;
+                const status = grade === 0 ? 'CURSANDO' : (isApproved ? 'APROVADO' : 'REPROVADO');
+                const statusColor = grade === 0 ? '#94a3b8' : (isApproved ? '#16a34a' : '#dc2626');
+                const statusBg = grade === 0 ? 'rgba(148, 163, 184, 0.1)' : (isApproved ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)');
 
-            return `
+                return `
                                         <tr>
                                             <td style="padding-left: 30px;">${sub}</td>
                                             <td style="text-align: center; font-weight: 600; color: var(--text-muted);">
@@ -895,7 +928,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </td>
                                         </tr>
                                     `;
-        }).join('')}
+            }).join('')}
                             `).join('')}
                         </tbody>
                     </table>
@@ -916,51 +949,51 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        lucide.createIcons();
-        document.getElementById('back-to-classes').onclick = () => renderView('classes');
-    }
-
-    // Função para editar/visualizar notas (Boletim)
-    async function renderGradeEditor(studentId) {
-        console.log("Abrindo editor de notas para ID:", studentId);
-        const students = await dbGet('sebitam-students');
-        const s = students.find(item => String(item.id) === String(studentId));
-        if (!s) {
-            alert('Erro: Aluno não encontrado (ID: ' + studentId + ')');
-            return;
+            lucide.createIcons();
+            document.getElementById('back-to-classes').onclick = () => renderView('classes');
         }
 
-        const moduleNum = s.module || 1;
-        const subjects = subjectMap[moduleNum] ? subjectMap[moduleNum].subs : [];
-        const contentBody = document.getElementById('dynamic-content');
+        // Função para editar/visualizar notas (Boletim)
+        async function renderGradeEditor(studentId) {
+            console.log("Abrindo editor de notas para ID:", studentId);
+            const students = await dbGet('sebitam-students');
+            const s = students.find(item => String(item.id) === String(studentId));
+            if (!s) {
+                alert('Erro: Aluno não encontrado (ID: ' + studentId + ')');
+                return;
+            }
 
-        // Calcular média geral e situação
-        let totalNotas = 0;
-        let countNotas = 0;
-        let totalFreq = 0;
-        let countFreq = 0;
+            const moduleNum = s.module || 1;
+            const subjects = subjectMap[moduleNum] ? subjectMap[moduleNum].subs : [];
+            const contentBody = document.getElementById('dynamic-content');
 
-        Object.entries(subjectMap).forEach(([mod, data]) => {
-            data.subs.forEach(sub => {
-                const grade = (s.subjectGrades && s.subjectGrades[sub]) || 0;
-                const freq = (s.subjectFreqs && s.subjectFreqs[sub]) || 0;
-                if (grade > 0) {
-                    totalNotas += parseFloat(grade);
-                    countNotas++;
-                }
-                if (freq > 0) {
-                    totalFreq += parseFloat(freq);
-                    countFreq++;
-                }
+            // Calcular média geral e situação
+            let totalNotas = 0;
+            let countNotas = 0;
+            let totalFreq = 0;
+            let countFreq = 0;
+
+            Object.entries(subjectMap).forEach(([mod, data]) => {
+                data.subs.forEach(sub => {
+                    const grade = (s.subjectGrades && s.subjectGrades[sub]) || 0;
+                    const freq = (s.subjectFreqs && s.subjectFreqs[sub]) || 0;
+                    if (grade > 0) {
+                        totalNotas += parseFloat(grade);
+                        countNotas++;
+                    }
+                    if (freq > 0) {
+                        totalFreq += parseFloat(freq);
+                        countFreq++;
+                    }
+                });
             });
-        });
 
-        const mediaGeral = countNotas > 0 ? (totalNotas / countNotas).toFixed(2) : '0.00';
-        const mediaFreq = countFreq > 0 ? (totalFreq / countFreq).toFixed(1) : '0.0';
-        const situacao = parseFloat(mediaGeral) >= 7 && parseFloat(mediaFreq) >= 75 ? 'APROVADO' : 'EM ANDAMENTO';
-        const situacaoColor = situacao === 'APROVADO' ? '#16a34a' : '#eab308';
+            const mediaGeral = countNotas > 0 ? (totalNotas / countNotas).toFixed(2) : '0.00';
+            const mediaFreq = countFreq > 0 ? (totalFreq / countFreq).toFixed(1) : '0.0';
+            const situacao = parseFloat(mediaGeral) >= 7 && parseFloat(mediaFreq) >= 75 ? 'APROVADO' : 'EM ANDAMENTO';
+            const situacaoColor = situacao === 'APROVADO' ? '#16a34a' : '#eab308';
 
-        contentBody.innerHTML = `
+            contentBody.innerHTML = `
             <div class="view-header">
                 <button class="btn-primary" id="back-to-classes" style="width: auto; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                     <i data-lucide="arrow-left"></i> Voltar
@@ -968,8 +1001,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h2>${currentUser.role === 'student' ? 'Meu Boletim' : 'Lançamento de Notas'}: ${s.fullName.toUpperCase()}</h2>
                 <p style="color: var(--text-muted);">
                     ${currentUser.role === 'student'
-                ? 'Visualize suas notas e frequência em todas as disciplinas'
-                : 'Edite as notas e frequências do aluno'}
+                    ? 'Visualize suas notas e frequência em todas as disciplinas'
+                    : 'Edite as notas e frequências do aluno'}
                 </p>
             </div>
 
@@ -1012,13 +1045,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </td>
                             </tr>
                             ${mData.subs.map(sub => {
-                    const grade = (s.subjectGrades && s.subjectGrades[sub]) || '';
-                    const freq = (s.subjectFreqs && s.subjectFreqs[sub]) || '100';
-                    const isApproved = parseFloat(grade) >= 7 && parseFloat(freq) >= 75;
-                    const status = grade === '' ? '-' : (isApproved ? 'Aprovado' : 'Reprovado');
-                    const statusColor = grade === '' ? '#94a3b8' : (isApproved ? '#16a34a' : '#dc2626');
+                        const grade = (s.subjectGrades && s.subjectGrades[sub]) || '';
+                        const freq = (s.subjectFreqs && s.subjectFreqs[sub]) || '100';
+                        const isApproved = parseFloat(grade) >= 7 && parseFloat(freq) >= 75;
+                        const status = grade === '' ? '-' : (isApproved ? 'Aprovado' : 'Reprovado');
+                        const statusColor = grade === '' ? '#94a3b8' : (isApproved ? '#16a34a' : '#dc2626');
 
-                    return `
+                        return `
                                     <tr>
                                         <td>${sub}</td>
                                         <td style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">Módulo ${mNum}</td>
@@ -1054,7 +1087,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         </td>
                                     </tr>
                                 `;
-                }).join('')}
+                    }).join('')}
                         `).join('')}
                     </tbody>
                 </table>
@@ -1069,54 +1102,54 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        lucide.createIcons();
-        document.getElementById('back-to-classes').onclick = () => renderView('classes');
+            lucide.createIcons();
+            document.getElementById('back-to-classes').onclick = () => renderView('classes');
 
-        const saveBtn = document.getElementById('save-grades');
-        if (saveBtn) {
-            saveBtn.onclick = async () => {
-                const grades = {}, freqs = {};
-                document.querySelectorAll('.subject-grade').forEach(i => {
-                    const val = i.value.trim();
-                    grades[i.dataset.subject] = val === '' ? null : parseFloat(val);
-                });
-                document.querySelectorAll('.subject-freq').forEach(i => {
-                    const val = i.value.trim();
-                    freqs[i.dataset.subject] = val === '' ? null : parseFloat(val);
-                });
+            const saveBtn = document.getElementById('save-grades');
+            if (saveBtn) {
+                saveBtn.onclick = async () => {
+                    const grades = {}, freqs = {};
+                    document.querySelectorAll('.subject-grade').forEach(i => {
+                        const val = i.value.trim();
+                        grades[i.dataset.subject] = val === '' ? null : parseFloat(val);
+                    });
+                    document.querySelectorAll('.subject-freq').forEach(i => {
+                        const val = i.value.trim();
+                        freqs[i.dataset.subject] = val === '' ? null : parseFloat(val);
+                    });
 
-                const success = await dbUpdateItem('sebitam-students', studentId, {
-                    subjectGrades: grades,
-                    subjectFreqs: freqs
-                });
+                    const success = await dbUpdateItem('sebitam-students', studentId, {
+                        subjectGrades: grades,
+                        subjectFreqs: freqs
+                    });
 
-                if (success) {
-                    alert('Boletim atualizado com sucesso!');
-                    renderView('classes');
-                }
-            };
-        }
-        document.getElementById('print-grades').onclick = () => printAcademicHistory(studentId);
-    }
-
-    // Expor funções no escopo global para serem acessíveis via onclick
-    window.renderGradeEditor = renderGradeEditor;
-    window.viewAcademicHistory = viewAcademicHistory;
-    window.generateCertificate = generateCertificate;
-    window.printAcademicHistory = printAcademicHistory;
-
-    // Função para editar cadastro de aluno
-    async function renderEditStudent(studentId) {
-        console.log("Editando cadastro do aluno ID:", studentId);
-        const students = await dbGet('sebitam-students');
-        const s = students.find(item => String(item.id) === String(studentId));
-        if (!s) {
-            alert('Erro: Aluno não encontrado (ID: ' + studentId + ')');
-            return;
+                    if (success) {
+                        alert('Boletim atualizado com sucesso!');
+                        renderView('classes');
+                    }
+                };
+            }
+            document.getElementById('print-grades').onclick = () => printAcademicHistory(studentId);
         }
 
-        const contentBody = document.getElementById('dynamic-content');
-        contentBody.innerHTML = `
+        // Expor funções no escopo global para serem acessíveis via onclick
+        window.renderGradeEditor = renderGradeEditor;
+        window.viewAcademicHistory = viewAcademicHistory;
+        window.generateCertificate = generateCertificate;
+        window.printAcademicHistory = printAcademicHistory;
+
+        // Função para editar cadastro de aluno
+        async function renderEditStudent(studentId) {
+            console.log("Editando cadastro do aluno ID:", studentId);
+            const students = await dbGet('sebitam-students');
+            const s = students.find(item => String(item.id) === String(studentId));
+            if (!s) {
+                alert('Erro: Aluno não encontrado (ID: ' + studentId + ')');
+                return;
+            }
+
+            const contentBody = document.getElementById('dynamic-content');
+            contentBody.innerHTML = `
             <div class="view-header">
                 <button class="btn-primary" id="back-to-classes" style="width: auto; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
                     <i data-lucide="arrow-left"></i> Voltar
@@ -1186,80 +1219,71 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        lucide.createIcons();
-        document.getElementById('back-to-classes').onclick = () => renderView('classes');
+            lucide.createIcons();
+            document.getElementById('back-to-classes').onclick = () => renderView('classes');
 
-        document.getElementById('edit-student-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const updates = {
-                fullName: formData.get('fullName'),
-                module: parseInt(formData.get('module')),
-                grade: parseInt(formData.get('grade')),
-                plan: formData.get('plan'),
-                email: formData.get('email'),
-                phone: formData.get('phone')
+            document.getElementById('edit-student-form').onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updates = {
+                    fullName: formData.get('fullName'),
+                    module: parseInt(formData.get('module')),
+                    grade: parseInt(formData.get('grade')),
+                    plan: formData.get('plan'),
+                    email: formData.get('email'),
+                    phone: formData.get('phone')
+                };
+
+                await dbUpdateItem('sebitam-students', studentId, updates);
+                alert('Cadastro atualizado com sucesso!');
+                await renderView('classes');
             };
-
-            await dbUpdateItem('sebitam-students', studentId, updates);
-            alert('Cadastro atualizado com sucesso!');
-            await renderView('classes');
-        };
-    }
-
-    // Função para atualizar status de pagamento
-    async function updatePaymentStatus(studentId, newStatus) {
-        console.log(`Atualizando status de pagamento: ID ${studentId} -> ${newStatus}`);
-        await dbUpdateItem('sebitam-students', studentId, { paymentStatus: newStatus });
-        alert(`Status de pagamento alterado para: ${newStatus}`);
-        await renderView('classes');
-    }
-
-    // Expor novas funções no escopo global
-    window.renderEditStudent = renderEditStudent;
-    window.updatePaymentStatus = updatePaymentStatus;
-
-    // Função para imprimir boletim completo formatado
-    async function printBoletim(studentId) {
-        console.log("Gerando boletim completo para ID:", studentId);
-        const students = await dbGet('sebitam-students');
-        const s = students.find(item => String(item.id) === String(studentId));
-        if (!s) {
-            alert('Erro: Aluno não encontrado (ID: ' + studentId + ')');
-            return;
         }
 
-        const nameCap = s.fullName.toUpperCase();
-        const today = new Date().toLocaleDateString('pt-BR');
+        // Expor novas funções no escopo global
+        window.renderEditStudent = renderEditStudent;
 
-        // Calcular média geral e frequência média
-        let totalNotas = 0;
-        let countNotas = 0;
-        let totalFreq = 0;
-        let countFreq = 0;
+        // Função para imprimir boletim completo formatado
+        async function printBoletim(studentId) {
+            console.log("Gerando boletim completo para ID:", studentId);
+            const students = await dbGet('sebitam-students');
+            const s = students.find(item => String(item.id) === String(studentId));
+            if (!s) {
+                alert('Erro: Aluno não encontrado (ID: ' + studentId + ')');
+                return;
+            }
 
-        Object.entries(subjectMap).forEach(([mod, data]) => {
-            data.subs.forEach(sub => {
-                const grade = (s.subjectGrades && s.subjectGrades[sub]) || 0;
-                const freq = (s.subjectFreqs && s.subjectFreqs[sub]) || 0;
-                if (grade > 0) {
-                    totalNotas += parseFloat(grade);
-                    countNotas++;
-                }
-                if (freq > 0) {
-                    totalFreq += parseFloat(freq);
-                    countFreq++;
-                }
+            const nameCap = s.fullName.toUpperCase();
+            const today = new Date().toLocaleDateString('pt-BR');
+
+            // Calcular média geral e frequência média
+            let totalNotas = 0;
+            let countNotas = 0;
+            let totalFreq = 0;
+            let countFreq = 0;
+
+            Object.entries(subjectMap).forEach(([mod, data]) => {
+                data.subs.forEach(sub => {
+                    const grade = (s.subjectGrades && s.subjectGrades[sub]) || 0;
+                    const freq = (s.subjectFreqs && s.subjectFreqs[sub]) || 0;
+                    if (grade > 0) {
+                        totalNotas += parseFloat(grade);
+                        countNotas++;
+                    }
+                    if (freq > 0) {
+                        totalFreq += parseFloat(freq);
+                        countFreq++;
+                    }
+                });
             });
-        });
 
-        const mediaGeral = countNotas > 0 ? (totalNotas / countNotas).toFixed(2) : '0.00';
-        const mediaFreq = countFreq > 0 ? (totalFreq / countFreq).toFixed(1) : '0.0';
+            const mediaGeral = countNotas > 0 ? (totalNotas / countNotas).toFixed(2) : '0.00';
+            const mediaFreq = countFreq > 0 ? (totalFreq / countFreq).toFixed(1) : '0.0';
 
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return alert('Por favor, libere os pop-ups para visualizar o boletim.');
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) return alert('Por favor, libere os pop-ups para visualizar o boletim.');
 
-        printWindow.document.write(`
+            printWindow.document.write(`
             <html>
                 <head>
                     <title>Boletim Escolar - ${s.fullName}</title>
@@ -1452,20 +1476,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         </thead>
                         <tbody>
                             ${Object.entries(subjectMap).map(([module, data]) => {
-            return `
+                return `
                                     <tr class="module-row">
                                         <td colspan="6">
                                             ${data.title}
                                         </td>
                                     </tr>
                                     ${data.subs.map(sub => {
-                const grade = (s.subjectGrades && s.subjectGrades[sub]) || 0;
-                const freq = (s.subjectFreqs && s.subjectFreqs[sub]) || 100;
-                const isApproved = grade >= 7 && freq >= 75;
-                const status = grade === 0 ? 'CURSANDO' : (isApproved ? 'APROVADO' : 'REPROVADO');
-                const statusClass = grade === 0 ? 'status-cursando' : (isApproved ? 'status-aprovado' : 'status-reprovado');
+                    const grade = (s.subjectGrades && s.subjectGrades[sub]) || 0;
+                    const freq = (s.subjectFreqs && s.subjectFreqs[sub]) || 100;
+                    const isApproved = grade >= 7 && freq >= 75;
+                    const status = grade === 0 ? 'CURSANDO' : (isApproved ? 'APROVADO' : 'REPROVADO');
+                    const statusClass = grade === 0 ? 'status-cursando' : (isApproved ? 'status-aprovado' : 'status-reprovado');
 
-                return `
+                    return `
                                             <tr>
                                                 <td style="padding-left: 25px;">${sub}</td>
                                                 <td style="text-align: center; color: #64748b;">Módulo ${module}</td>
@@ -1475,9 +1499,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 <td style="text-align: center;" class="${statusClass}">${status}</td>
                                             </tr>
                                         `;
-            }).join('')}
+                }).join('')}
                                 `;
-        }).join('')}
+            }).join('')}
                         </tbody>
                     </table>
 
@@ -1496,37 +1520,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 </body>
             </html>
         `);
-        printWindow.document.close();
-    }
+            printWindow.document.close();
+        }
 
-    // Expor função no escopo global
-    window.printBoletim = printBoletim;
+        // Expor função no escopo global
+        window.printBoletim = printBoletim;
 
-    async function printFinancialReport(monthIndex, year) {
-        console.log(`Gerando relatório financeiro: Mês ${monthIndex}, Ano ${year}`);
-        const students = await dbGet('sebitam-students');
-        const monthName = new Date(year, monthIndex).toLocaleString('pt-BR', { month: 'long' });
-        const monthNameCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+        async function printFinancialReport(monthIndex, year) {
+            console.log(`Gerando relatório financeiro: Mês ${monthIndex}, Ano ${year}`);
+            const students = await dbGet('sebitam-students');
+            const monthName = new Date(year, monthIndex).toLocaleString('pt-BR', { month: 'long' });
+            const monthNameCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-        // Calcular totais
-        const PRICES = { integral: 70, half: 35, scholarship: 0 };
-        let totalExpected = 0;
-        let totalReceived = 0;
+            // Calcular totais
+            const PRICES = { integral: 70, half: 35, scholarship: 0 };
+            let totalExpected = 0;
+            let totalReceived = 0;
 
-        const reportData = students.map(s => {
-            const status = s.paymentStatus || (['integral', 'scholarship'].includes(s.plan) ? 'Pago' : 'Pendente');
-            const value = PRICES[s.plan] || 0;
-            totalExpected += value;
-            if (status === 'Pago') totalReceived += value;
-            return { ...s, status, value };
-        });
+            const reportData = students.map(s => {
+                const status = s.paymentStatus || (['integral', 'scholarship'].includes(s.plan) ? 'Pago' : 'Pendente');
+                const value = PRICES[s.plan] || 0;
+                totalExpected += value;
+                if (status === 'Pago') totalReceived += value;
+                return { ...s, status, value };
+            });
 
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return alert('Por favor, libere os pop-ups para imprimir o relatório.');
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) return alert('Por favor, libere os pop-ups para imprimir o relatório.');
 
-        const dateStr = new Date().toLocaleDateString('pt-BR');
+            const dateStr = new Date().toLocaleDateString('pt-BR');
 
-        printWindow.document.write(`
+            printWindow.document.write(`
             <html>
                 <head>
                     <title>Relatório Financeiro - ${monthNameCap}/${year}</title>
@@ -1604,207 +1628,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 </body>
             </html>
         `);
-        printWindow.document.close();
-    }
-
-    async function renderGradeEditor(studentId) {
-        console.log("Abrindo editor de notas para ID:", studentId);
-        const students = await dbGet('sebitam-students');
-        const s = students.find(item => String(item.id) === String(studentId));
-        if (!s) {
-            alert('Erro: Aluno não encontrado (ID: ' + studentId + ')');
-            return;
+            printWindow.document.close();
         }
-        const moduleNum = s.module || 1;
-        const subjects = subjectMap[moduleNum] ? subjectMap[moduleNum].subs : [];
-        const contentBody = document.getElementById('dynamic-content');
 
-        contentBody.innerHTML = `
-            <div class="view-header">
-                <button class="btn-primary" id="back-to-classes" style="width: auto; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;"><i data-lucide="arrow-left"></i> Voltar</button>
-                <h2>${currentUser.role === 'student' ? 'Meu Boletim' : 'Lançamento de Notas'}: ${s.fullName.toUpperCase()}</h2>
-            </div>
-            <div class="form-container">
-                <table class="data-table">
-                    <thead><tr><th>Disciplina</th><th>Módulo</th><th>Nota</th><th>Freq %</th></tr></thead>
-                    <tbody>
-                        ${Object.entries(subjectMap).map(([mNum, mData]) => `
-                            <tr style="background: #f1f5f9; font-weight: bold;"><td colspan="4">${mData.title}</td></tr>
-                            ${mData.subs.map(sub => `
-                                <tr>
-                                    <td>${sub}</td>
-                                    <td style="font-size: 0.8rem; color: var(--text-muted);">Módulo ${mNum}</td>
-                                    <td><input type="number" class="table-input subject-grade" data-subject="${sub}" value="${(s.subjectGrades && s.subjectGrades[sub]) || ''}" step="0.1" min="0" max="10" ${currentUser.role === 'student' ? 'disabled' : ''}></td>
-                                    <td><input type="number" class="table-input subject-freq" data-subject="${sub}" value="${(s.subjectFreqs && s.subjectFreqs[sub]) || '100'}" min="0" max="100" ${currentUser.role === 'student' ? 'disabled' : ''}></td>
-                                </tr>
-                            `).join('')}
-                        `).join('')}
-                    </tbody>
-                </table>
-                <div class="form-actions" style="margin-top:20px; display:flex; gap:10px;">
-                    ${currentUser.role !== 'student' ? '<button id="save-grades" class="btn-primary">Salvar Boletim</button>' : ''}
-                    <button id="print-grades" class="btn-primary" style="background:var(--secondary)">Imprimir Histórico</button>
-                </div>
-            </div>
-        `;
-        lucide.createIcons();
-        document.getElementById('back-to-classes').onclick = () => renderView('classes');
-        const saveBtn = document.getElementById('save-grades');
-        if (saveBtn) {
-            saveBtn.onclick = async () => {
-                const grades = {}, freqs = {};
-                document.querySelectorAll('.subject-grade').forEach(i => {
-                    const val = i.value.trim();
-                    grades[i.dataset.subject] = val === '' ? null : parseFloat(val);
-                });
-                document.querySelectorAll('.subject-freq').forEach(i => {
-                    const val = i.value.trim();
-                    freqs[i.dataset.subject] = val === '' ? null : parseFloat(val);
-                });
-
-                const success = await dbUpdateItem('sebitam-students', studentId, {
-                    subjectGrades: grades,
-                    subjectFreqs: freqs
-                });
-
-                if (success) {
-                    alert('Boletim salvo com sucesso!');
-                    await renderView('classes');
-                }
-            };
-        }
-        document.getElementById('print-grades').onclick = () => printAcademicHistory(studentId);
-    }
-
-    async function renderEditStudent(studentId) {
-        const students = await dbGet('sebitam-students');
-        const s = students.find(item => item.id == studentId);
-        if (!s) return;
-
-        const contentBody = document.getElementById('dynamic-content');
-        contentBody.innerHTML = `
-            <div class="view-header">
-                <button class="btn-primary" id="back-to-users" style="width: auto; margin-bottom: 20px;"><i data-lucide="arrow-left"></i> Voltar</button>
-                <h2>Editar Cadastro: ${s.fullName}</h2>
-            </div>
-            <div class="form-container">
-                <form id="edit-st-form">
-                    <div class="form-grid">
-                        <div class="form-group full-width">
-                            <label>Nome Completo do Aluno</label>
-                            <div class="input-field">
-                                <i data-lucide="user"></i>
-                                <input type="text" name="fullName" value="${s.fullName}" required>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Módulo Atual</label>
-                            <div class="input-field">
-                                <i data-lucide="layers"></i>
-                                <select name="module" style="padding-left: 48px;">
-                                    <option value="1" ${s.module == '1' ? 'selected' : ''}>Módulo 1: Fundamentos</option>
-                                    <option value="2" ${s.module == '2' ? 'selected' : ''}>Módulo 2: Contexto Histórico</option>
-                                    <option value="3" ${s.module == '3' ? 'selected' : ''}>Módulo 3: Doutrinas Específica</option>
-                                    <option value="4" ${s.module == '4' ? 'selected' : ''}>Módulo 4: Teologia Aplicada</option>
-                                    <option value="5" ${s.module == '5' ? 'selected' : ''}>Módulo 5: Prática Pastoral</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Turma (1 a 10)</label>
-                            <div class="input-field">
-                                <i data-lucide="hash"></i>
-                                <select name="grade" style="padding-left: 48px;">
-                                    ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `<option value="${n}" ${s.grade == n ? 'selected' : ''}>Turma ${n}</option>`).join('')}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Plano Financeiro</label>
-                            <div class="input-field">
-                                <i data-lucide="credit-card"></i>
-                                <select name="plan" style="padding-left: 48px;">
-                                    <option value="integral" ${s.plan === 'integral' ? 'selected' : ''}>Integral (R$ 70,00)</option>
-                                    <option value="half" ${s.plan === 'half' ? 'selected' : ''}>Parcial (R$ 35,00)</option>
-                                    <option value="scholarship" ${s.plan === 'scholarship' ? 'selected' : ''}>Bolsista</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>E-mail Pessoal</label>
-                            <div class="input-field">
-                                <i data-lucide="mail"></i>
-                                <input type="email" name="email" value="${s.email || ''}" required>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Telefone / WhatsApp</label>
-                            <div class="input-field">
-                                <i data-lucide="phone"></i>
-                                <input type="tel" name="phone" value="${s.phone || ''}" required>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn-primary" style="margin-bottom: 0;">Salvar Alterações</button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-        lucide.createIcons();
-        document.getElementById('back-to-users').onclick = () => renderView('users');
-
-        document.getElementById('edit-st-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const fd = new FormData(e.target);
-            const data = Object.fromEntries(fd.entries());
-            await dbUpdateItem('sebitam-students', studentId, data);
-            alert('Cadastro atualizado com sucesso!');
-            await renderView('users');
-        };
-    }
-
-    async function renderView(view, data = null, addToHistory = true) {
-        // Handle History
-        if (addToHistory && currentView && currentView !== 'login' && currentView !== view) {
-            viewHistory.push({ view: currentView, data: currentData });
-        }
-        currentView = view;
-        currentData = data;
-
-        // Header Back Button Logic
-        const headBackBtn = document.getElementById('back-btn');
-        const headMenuBtn = document.getElementById('menu-toggle');
-
-        if (headBackBtn && headMenuBtn) {
-            if (view === 'overview') {
-                headBackBtn.style.display = 'none';
-                headMenuBtn.style.display = 'flex'; // Show menu on home
-            } else {
-                headBackBtn.style.display = 'flex';
-                // Optional: Hide menu button on deep pages if desired, user asked for back icon
-                // Keeping menu accessible is usually better, but let's prioritize the back button requested.
-                // headMenuBtn.style.display = 'none'; 
+        async function renderView(view, data = null, addToHistory = true) {
+            // Handle History
+            if (addToHistory && currentView && currentView !== 'login' && currentView !== view) {
+                viewHistory.push({ view: currentView, data: currentData });
             }
-        }
+            currentView = view;
+            currentData = data;
 
-        const contentBody = document.getElementById('dynamic-content');
-        let html = '';
-        if (view === 'escolas-ibma') {
-            view = 'overview';
-        }
-        switch (view) {
-            case 'overview':
-                const students = await dbGet('sebitam-students');
-                const listTeachers = await dbGet('sebitam-teachers');
-                const listAdmins = await dbGet('sebitam-admins');
-                const listSecs = await dbGet('sebitam-secretaries');
-                const countSt = students.length;
+            // Header Back Button Logic
+            const headBackBtn = document.getElementById('back-btn');
+            const headMenuBtn = document.getElementById('menu-toggle');
 
-                const professoresIbma = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]');
-                const alunosIbma = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]');
-                html = `
+            if (headBackBtn && headMenuBtn) {
+                if (view === 'overview') {
+                    headBackBtn.style.display = 'none';
+                    headMenuBtn.style.display = 'flex'; // Show menu on home
+                } else {
+                    headBackBtn.style.display = 'flex';
+                    // Optional: Hide menu button on deep pages if desired, user asked for back icon
+                    // Keeping menu accessible is usually better, but let's prioritize the back button requested.
+                    // headMenuBtn.style.display = 'none'; 
+                }
+            }
+
+            const contentBody = document.getElementById('dynamic-content');
+            let html = '';
+            if (view === 'escolas-ibma') {
+                view = 'overview';
+            }
+            switch (view) {
+                case 'overview':
+                    const students = await dbGetWithTimeout('sebitam-students');
+                    const listTeachers = await dbGetWithTimeout('sebitam-teachers');
+                    const listAdmins = await dbGetWithTimeout('sebitam-admins');
+                    const listSecs = await dbGetWithTimeout('sebitam-secretaries');
+                    const countSt = students.length;
+
+                    const professoresIbma = safeLocalGet();
+                    const alunosIbma = safeLocalGet();
+                    html = `
                     <div class="welcome-card"><h1 style="color: white !important;">Olá, ${currentUser.name}!
                         ${currentUser.loginType === 'escolas-ibma' && currentUser.role === 'admin' ? `
                         <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.7rem;background:rgba(234,179,8,0.25);border:1px solid rgba(234,179,8,0.5);border-radius:20px;padding:3px 12px;margin-left:10px;vertical-align:middle;font-weight:700;letter-spacing:0.5px;color:#fef08a;">
@@ -1841,7 +1707,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button class="btn-primary ibma-nav-btn" data-view="alunos-ibma" style="padding:10px 20px;font-size:0.9rem;display:flex;align-items:center;gap:8px;">
                             <i data-lucide="users" style="width:16px;height:16px;"></i> Ver Alunos e Notas
                         </button>
-                        <button class="btn-primary ibma-nav-btn" data-view="chat-sebitam" style="padding:10px 20px;font-size:0.9rem;background:var(--secondary);display:flex;align-items:center;gap:8px;">
+                        <button class="btn-primary ibma-nav-btn" data-view="theology-ai" style="padding:10px 20px;font-size:0.9rem;background:var(--secondary);display:flex;align-items:center;gap:8px;">
                             <i data-lucide="message-circle" style="width:16px;height:16px;"></i> Abrir Chat IBMA
                         </button>
                     </div>
@@ -1999,11 +1865,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
 
                     ` : ''}
-                    ` : ''
-        }
-
-                    ${
-            currentUser.loginType === 'escolas-ibma' ? `
+                    ${currentUser.loginType === 'escolas-ibma' ? `
                     <div class="corpo-docente-header" style="margin-top: 40px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
                         <div class="corpo-docente-icon" style="width: 52px; height: 52px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                             <i data-lucide="graduation-cap" style="width: 28px; height: 28px;"></i>
@@ -2017,7 +1879,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="stat-card" style="height: auto; align-items: flex-start; padding: 25px; background: white; border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); width: 100%;">
                             <div style="width: 100%;">
                                 ${professoresIbma.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum professor cadastrado.</p>' :
-                    professoresIbma.map(t => `
+                                professoresIbma.map(t => `
                                         <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                                             <div>
                                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${t.fullName || t.name}</div>
@@ -2032,14 +1894,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>` : ''}
                                         </div>
                                     `).join('')
-                }   </div>
+                            }   </div>
                         </div>
                     </div>
-                    ` : ''
-        }
-
-                    ${
-            currentUser.loginType !== 'escolas-ibma' ? `
+                    ` : ''}
+                    ${currentUser.loginType !== 'escolas-ibma' ? `
                     <div class="corpo-docente-header" style="margin-top: 40px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
                         <div class="corpo-docente-icon" style="width: 52px; height: 52px; border-radius: 14px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                             <i data-lucide="graduation-cap" style="width: 28px; height: 28px;"></i>
@@ -2059,7 +1918,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div style="width: 100%;">
                                 ${listAdmins.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum administrador cadastrado.</p>' :
-                    listAdmins.map(a => `
+                                listAdmins.map(a => `
                                         <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                                             <div>
                                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${a.name}</div>
@@ -2073,7 +1932,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>` : ''}
                                         </div>
                                     `).join('')
-                }                   </div>
+                            }                   </div>
                         </div>
 
                         <!-- Sec Card -->
@@ -2084,7 +1943,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div style="width: 100%;">
                                  ${listSecs.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum secretário cadastrado.</p>' :
-                    listSecs.map(s => `
+                                listSecs.map(s => `
                                         <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                                             <div>
                                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${s.name}</div>
@@ -2098,7 +1957,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>` : ''}
                                         </div>
                                     `).join('')
-                }                   </div>
+                            }                   </div>
                         </div>
 
                         <!-- Teacher Card -->
@@ -2109,7 +1968,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                             <div style="width: 100%;">
                                 ${listTeachers.length === 0 ? '<p style="font-size: 0.9rem; color: var(--text-muted);">Nenhum professor cadastrado.</p>' :
-                    listTeachers.map(t => `
+                                listTeachers.map(t => `
                                         <div style="margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                                             <div>
                                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-main);">${t.name}</div>
@@ -2123,105 +1982,105 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </button>` : ''}
                                         </div>
                                     `).join('')
-                }
+                            }
                             </div>
                         </div>
                     </div>
                     ` : ''
-        }
+                        }
         `;
-                setTimeout(() => {
-                    // Botões de atalho do painel Admin IBMA
-                    document.querySelectorAll('.ibma-nav-btn').forEach(btn => {
-                        btn.addEventListener('click', () => renderView(btn.dataset.view));
-                    });
-                    document.querySelectorAll('.delete-staff-ov').forEach(b => {
-                        b.onclick = async () => {
-                            const type = b.dataset.type;
-                            const id = b.dataset.id;
-                            console.log(`Deleting staff member: ${ type } with id ${ id } `);
-                            const label = type === 'admin' ? 'Administrador' : type === 'teacher' ? 'Professor' : 'Secretário';
-                            if (!confirm(`Tem certeza que deseja excluir este ${ label }?`)) return;
-                            const key = type === 'teacher' ? 'sebitam-teachers' : type === 'admin' ? 'sebitam-admins' : 'sebitam-secretaries';
-                            await dbDeleteItem(key, id);
-                            await renderView('overview');
-                        };
-                    });
-                    document.querySelectorAll('.overview-shortcut[data-view]').forEach(el => {
-                        el.onclick = async (e) => {
-                            e.preventDefault();
-                            const view = el.getAttribute('data-view');
-                            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                            const navEl = document.querySelector('.nav-item[data-view="' + view + '"]');
-                            if (navEl) navEl.classList.add('active');
-                            const sidebar = document.getElementById('sidebar');
-                            const overlay = document.getElementById('sidebar-overlay');
-                            if (window.innerWidth <= 768 && sidebar && overlay) {
-                                sidebar.classList.remove('active');
-                                overlay.classList.remove('active');
-                            }
-                            await renderView(view);
-                        };
-                    });
-                    const formProfIbma = document.getElementById('cadastro-professores-ibma-form');
-                    if (formProfIbma) {
-                        formProfIbma.onsubmit = async (e) => {
-                            e.preventDefault();
-                            const fd = new FormData(formProfIbma);
-                            const nome = fd.get('fullName')?.trim();
-                            const tel = fd.get('phone')?.trim();
-                            const email = fd.get('email')?.trim();
-                            if (!nome) { alert('Informe o nome do professor.'); return; }
-                            const obj = { fullName: nome, phone: tel, email: email, id: Date.now() };
-                            const list = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]');
-                            list.push(obj);
-                            localStorage.setItem('professores-escolas-ibma', JSON.stringify(list));
-                            formProfIbma.reset();
-                            await renderView('overview');
-                        };
+                    setTimeout(() => {
+                        // Botões de atalho do painel Admin IBMA
+                        document.querySelectorAll('.ibma-nav-btn').forEach(btn => {
+                            btn.addEventListener('click', () => renderView(btn.dataset.view));
+                        });
+                        document.querySelectorAll('.delete-staff-ov').forEach(b => {
+                            b.onclick = async () => {
+                                const type = b.dataset.type;
+                                const id = b.dataset.id;
+                                console.log(`Deleting staff member: ${type} with id ${id} `);
+                                const label = type === 'admin' ? 'Administrador' : type === 'teacher' ? 'Professor' : 'Secretário';
+                                if (!confirm(`Tem certeza que deseja excluir este ${label}?`)) return;
+                                const key = type === 'teacher' ? 'sebitam-teachers' : type === 'admin' ? 'sebitam-admins' : 'sebitam-secretaries';
+                                await dbDeleteItem(key, id);
+                                await renderView('overview');
+                            };
+                        });
+                        document.querySelectorAll('.overview-shortcut[data-view]').forEach(el => {
+                            el.onclick = async (e) => {
+                                e.preventDefault();
+                                const view = el.getAttribute('data-view');
+                                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                                const navEl = document.querySelector('.nav-item[data-view="' + view + '"]');
+                                if (navEl) navEl.classList.add('active');
+                                const sidebar = document.getElementById('sidebar');
+                                const overlay = document.getElementById('sidebar-overlay');
+                                if (window.innerWidth <= 768 && sidebar && overlay) {
+                                    sidebar.classList.remove('active');
+                                    overlay.classList.remove('active');
+                                }
+                                await renderView(view);
+                            };
+                        });
+                        const formProfIbma = document.getElementById('cadastro-professores-ibma-form');
+                        if (formProfIbma) {
+                            formProfIbma.onsubmit = async (e) => {
+                                e.preventDefault();
+                                const fd = new FormData(formProfIbma);
+                                const nome = fd.get('fullName')?.trim();
+                                const tel = fd.get('phone')?.trim();
+                                const email = fd.get('email')?.trim();
+                                if (!nome) { alert('Informe o nome do professor.'); return; }
+                                const obj = { fullName: nome, phone: tel, email: email, id: Date.now() };
+                                const list = safeLocalGet();
+                                list.push(obj);
+                                localStorage.setItem('professores-escolas-ibma', JSON.stringify(list));
+                                formProfIbma.reset();
+                                await renderView('overview');
+                            };
 
-                    }
-                    const formAlunosIbma = document.getElementById('cadastro-alunos-ibma-form');
-                    if (formAlunosIbma) {
-                        formAlunosIbma.onsubmit = async (e) => {
-                            e.preventDefault();
-                            const fd = new FormData(formAlunosIbma);
-                            const obj = { fullName: fd.get('fullName'), phone: fd.get('phone'), email: fd.get('email'), escola: fd.get('escola'), id: Date.now() };
-                            const list = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]');
-                            list.push(obj);
-                            localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
-                            await renderView('overview');
-                        };
-                    }
-                    document.querySelectorAll('.delete-professor-ibma').forEach(btn => {
-                        btn.onclick = async () => {
-                            if (!confirm('Excluir este professor?')) return;
-                            const list = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]').filter(x => String(x.id) !== String(btn.dataset.id));
-                            localStorage.setItem('professores-escolas-ibma', JSON.stringify(list));
-                            await renderView('overview');
-                        };
-                    });
-                    document.querySelectorAll('.delete-aluno-ibma').forEach(btn => {
-                        btn.onclick = async () => {
-                            if (!confirm('Excluir este aluno?')) return;
-                            const list = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]').filter(x => String(x.id) !== String(btn.dataset.id));
-                            localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
-                            await renderView('overview');
-                        };
-                    });
-                    lucide.createIcons();
-                }, 0);
-                break;
-            case 'alunos-ibma': {
-                let alunosIbmaList = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]');
-                const escolaLabels = { membresia: 'Membresia', discipulado: 'Discipulado', batismo: 'Batismo', oracao: 'Oração', maturidade: 'Maturidade Cristã' };
+                        }
+                        const formAlunosIbma = document.getElementById('cadastro-alunos-ibma-form');
+                        if (formAlunosIbma) {
+                            formAlunosIbma.onsubmit = async (e) => {
+                                e.preventDefault();
+                                const fd = new FormData(formAlunosIbma);
+                                const obj = { fullName: fd.get('fullName'), phone: fd.get('phone'), email: fd.get('email'), escola: fd.get('escola'), id: Date.now() };
+                                const list = safeLocalGet();
+                                list.push(obj);
+                                localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
+                                await renderView('overview');
+                            };
+                        }
+                        document.querySelectorAll('.delete-professor-ibma').forEach(btn => {
+                            btn.onclick = async () => {
+                                if (!confirm('Excluir este professor?')) return;
+                                const list = safeLocalGet().filter(x => String(x.id) !== String(btn.dataset.id));
+                                localStorage.setItem('professores-escolas-ibma', JSON.stringify(list));
+                                await renderView('overview');
+                            };
+                        });
+                        document.querySelectorAll('.delete-aluno-ibma').forEach(btn => {
+                            btn.onclick = async () => {
+                                if (!confirm('Excluir este aluno?')) return;
+                                const list = safeLocalGet().filter(x => String(x.id) !== String(btn.dataset.id));
+                                localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
+                                await renderView('overview');
+                            };
+                        });
+                        lucide.createIcons();
+                    }, 0);
+                    break;
+                case 'alunos-ibma': {
+                    let alunosIbmaList = safeLocalGet();
+                    const escolaLabels = { membresia: 'Membresia', discipulado: 'Discipulado', batismo: 'Batismo', oracao: 'Oração', maturidade: 'Maturidade Cristã' };
 
-                const printBoletim = (aluno) => {
-                    const escolaNome = escolaLabels[aluno.escola || aluno.modulo] || '-';
-                    const w = window.open('', '_blank');
-                    const bolRows = (aluno.boletimDados || [{ disciplina: escolaNome, frequencia: '—', nota: '—', situacao: 'Em andamento' }])
-                        .map(d => `< tr ><td>${d.disciplina || '-'}</td><td>${d.frequencia || '—'}</td><td>${d.nota || '—'}</td><td>${d.situacao || '—'}</td></tr > `).join('');
-                    w.document.write(`< html ><head><title>Boletim - ${aluno.fullName}</title>
+                    const printBoletim = (aluno) => {
+                        const escolaNome = escolaLabels[aluno.escola || aluno.modulo] || '-';
+                        const w = window.open('', '_blank');
+                        const bolRows = (aluno.boletimDados || [{ disciplina: escolaNome, frequencia: '—', nota: '—', situacao: 'Em andamento' }])
+                            .map(d => `< tr ><td>${d.disciplina || '-'}</td><td>${d.frequencia || '—'}</td><td>${d.nota || '—'}</td><td>${d.situacao || '—'}</td></tr > `).join('');
+                        w.document.write(`< html ><head><title>Boletim - ${aluno.fullName}</title>
                     <style>
                         body { font-family: 'Segoe UI', sans-serif; padding: 40px; color: #1e293b; }
                         .header { display: flex; align-items: center; gap: 20px; border-bottom: 2px solid #1a365d; padding-bottom: 16px; margin-bottom: 20px; }
@@ -2256,16 +2115,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     </table>
                     <div class="no-print"><button onclick="window.print()" style="padding:10px 24px;background:#1a365d;color:white;border:none;border-radius:6px;cursor:pointer;font-size:1rem;">Imprimir</button></div>
                     </body></html > `);
-                    w.document.close();
-                };
+                        w.document.close();
+                    };
 
-                const printCertificado = (aluno) => {
-                    const escolaNome = escolaLabels[aluno.escola || aluno.modulo] || '-';
-                    const certInfo = aluno.certDados || {};
-                    const dataHoje = certInfo.dataEmissao || new Date().toLocaleDateString('pt-BR');
-                    const obsExtra = certInfo.observacao ? `< p style = "font-style:italic;color:#475569;margin-top:12px;" > ${ certInfo.observacao }</p > ` : '';
-                    const w = window.open('', '_blank');
-                    w.document.write(`< html ><head><title>Certificado - ${aluno.fullName}</title>
+                    const printCertificado = (aluno) => {
+                        const escolaNome = escolaLabels[aluno.escola || aluno.modulo] || '-';
+                        const certInfo = aluno.certDados || {};
+                        const dataHoje = certInfo.dataEmissao || new Date().toLocaleDateString('pt-BR');
+                        const obsExtra = certInfo.observacao ? `< p style = "font-style:italic;color:#475569;margin-top:12px;" > ${certInfo.observacao}</p > ` : '';
+                        const w = window.open('', '_blank');
+                        w.document.write(`< html ><head><title>Certificado - ${aluno.fullName}</title>
                     <style>
                         body { font-family: 'Georgia', serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f0f4f8; }
                         .cert { border: 10px double #1a365d; padding: 60px 80px; text-align: center; max-width: 720px; background: white; box-shadow: 0 8px 40px rgba(0,0,0,0.12); }
@@ -2298,10 +2157,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="no-print" style="margin-top:20px;"><button onclick="window.print()" style="padding:10px 24px;background:#1a365d;color:white;border:none;border-radius:6px;cursor:pointer;font-size:1rem;">Imprimir</button></div>
                     </div>
                     </body></html>`);
-                    w.document.close();
-                };
+                        w.document.close();
+                    };
 
-                html = `
+                    html = `
                     <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 28px;">
                         <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
                             <i data-lucide="users" style="width: 30px; height: 30px;"></i>
@@ -2373,45 +2232,45 @@ document.addEventListener('DOMContentLoaded', () => {
                         </table>
                     </div>
                 `;
-                setTimeout(() => {
-                    lucide.createIcons();
+                    setTimeout(() => {
+                        lucide.createIcons();
 
-                    document.querySelectorAll('.ibma-boletim-btn').forEach(btn => {
-                        btn.onclick = () => {
-                            const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
-                            if (aluno) printBoletim(aluno);
-                        };
-                    });
+                        document.querySelectorAll('.ibma-boletim-btn').forEach(btn => {
+                            btn.onclick = () => {
+                                const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
+                                if (aluno) printBoletim(aluno);
+                            };
+                        });
 
-                    document.querySelectorAll('.ibma-certificado-btn').forEach(btn => {
-                        btn.onclick = () => {
-                            const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
-                            if (aluno) printCertificado(aluno);
-                        };
-                    });
+                        document.querySelectorAll('.ibma-certificado-btn').forEach(btn => {
+                            btn.onclick = () => {
+                                const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
+                                if (aluno) printCertificado(aluno);
+                            };
+                        });
 
-                    document.querySelectorAll('.ibma-print-btn').forEach(btn => {
-                        btn.onclick = () => {
-                            const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
-                            if (aluno) printBoletim(aluno);
-                        };
-                    });
+                        document.querySelectorAll('.ibma-print-btn').forEach(btn => {
+                            btn.onclick = () => {
+                                const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
+                                if (aluno) printBoletim(aluno);
+                            };
+                        });
 
-                    document.querySelectorAll('.ibma-edit-btn').forEach(btn => {
-                        btn.onclick = () => {
-                            const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
-                            if (!aluno) return;
+                        document.querySelectorAll('.ibma-edit-btn').forEach(btn => {
+                            btn.onclick = () => {
+                                const aluno = alunosIbmaList.find(a => String(a.id) === String(btn.dataset.id));
+                                if (!aluno) return;
 
-                            // Remove existing modal if any
-                            document.getElementById('ibma-edit-modal')?.remove();
+                                // Remove existing modal if any
+                                document.getElementById('ibma-edit-modal')?.remove();
 
-                            const bols = aluno.boletimDados || [{ disciplina: escolaLabels[aluno.escola || aluno.modulo] || '-', frequencia: '', nota: '', situacao: 'Em andamento' }];
-                            const cert = aluno.certDados || { dataEmissao: new Date().toLocaleDateString('pt-BR'), observacao: '' };
+                                const bols = aluno.boletimDados || [{ disciplina: escolaLabels[aluno.escola || aluno.modulo] || '-', frequencia: '', nota: '', situacao: 'Em andamento' }];
+                                const cert = aluno.certDados || { dataEmissao: new Date().toLocaleDateString('pt-BR'), observacao: '' };
 
-                            const modal = document.createElement('div');
-                            modal.id = 'ibma-edit-modal';
-                            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
-                            modal.innerHTML = `
+                                const modal = document.createElement('div');
+                                modal.id = 'ibma-edit-modal';
+                                modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+                                modal.innerHTML = `
                                 <div style="background:#ffffff;border-radius:20px;padding:32px;max-width:620px;width:100%;max-height:90vh;overflow-y:auto;color:#1e293b;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
                                     <button id="ibma-modal-close" style="position:absolute;top:16px;right:16px;background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:1.4rem;">✕</button>
                                     <h2 style="margin:0 0 6px;font-size:1.3rem;font-weight:800;color:#0f172a;">Editar Aluno</h2>
@@ -2466,21 +2325,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>
                                 </div>
                             `;
-                            document.body.appendChild(modal);
-                            lucide.createIcons();
+                                document.body.appendChild(modal);
+                                lucide.createIcons();
 
-                            const closeModal = () => modal.remove();
-                            modal.querySelector('#ibma-modal-close').onclick = closeModal;
-                            modal.querySelector('#ibma-modal-cancel').onclick = closeModal;
-                            modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+                                const closeModal = () => modal.remove();
+                                modal.querySelector('#ibma-modal-close').onclick = closeModal;
+                                modal.querySelector('#ibma-modal-cancel').onclick = closeModal;
+                                modal.onclick = (e) => { if (e.target === modal) closeModal(); };
 
-                            // Add discipline row
-                            modal.querySelector('#ibma-add-disc').onclick = () => {
-                                const list = modal.querySelector('#ibma-disc-list');
-                                const row = document.createElement('div');
-                                row.className = 'ibma-disc-row';
-                                row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr auto;gap:8px;align-items:center;';
-                                row.innerHTML = `
+                                // Add discipline row
+                                modal.querySelector('#ibma-add-disc').onclick = () => {
+                                    const list = modal.querySelector('#ibma-disc-list');
+                                    const row = document.createElement('div');
+                                    row.className = 'ibma-disc-row';
+                                    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr auto;gap:8px;align-items:center;';
+                                    row.innerHTML = `
                                     <input class="disc-nome" placeholder="Disciplina" style="padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.07);color:var(--text-main,#f1f5f9);font-size:0.88rem;">
                                     <input class="disc-freq" placeholder="Freq. %" style="padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.07);color:var(--text-main,#f1f5f9);font-size:0.88rem;text-align:center;">
                                     <input class="disc-nota" placeholder="Nota" style="padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.07);color:var(--text-main,#f1f5f9);font-size:0.88rem;text-align:center;">
@@ -2489,57 +2348,57 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </select>
                                     <button class="ibma-rm-disc" style="background:rgba(239,68,68,0.12);color:#ef4444;border:none;padding:9px;border-radius:8px;cursor:pointer;">✕</button>
                                 `;
-                                list.appendChild(row);
-                                row.querySelector('.ibma-rm-disc').onclick = () => row.remove();
+                                    list.appendChild(row);
+                                    row.querySelector('.ibma-rm-disc').onclick = () => row.remove();
+                                };
+
+                                // Remove discipline rows
+                                modal.querySelectorAll('.ibma-rm-disc').forEach(b => b.onclick = () => b.closest('.ibma-disc-row').remove());
+
+                                // Save
+                                modal.querySelector('#ibma-modal-save').onclick = () => {
+                                    const rows = modal.querySelectorAll('.ibma-disc-row');
+                                    const boletimDados = Array.from(rows).map(r => ({
+                                        disciplina: r.querySelector('.disc-nome').value,
+                                        frequencia: r.querySelector('.disc-freq').value,
+                                        nota: r.querySelector('.disc-nota').value,
+                                        situacao: r.querySelector('.disc-sit').value,
+                                    }));
+                                    const list = safeLocalGet();
+                                    const idx = list.findIndex(a => String(a.id) === String(aluno.id));
+                                    if (idx !== -1) {
+                                        list[idx].fullName = modal.querySelector('#ibma-edit-nome').value;
+                                        list[idx].phone = modal.querySelector('#ibma-edit-tel').value;
+                                        list[idx].email = modal.querySelector('#ibma-edit-email').value;
+                                        list[idx].boletimDados = boletimDados;
+                                        list[idx].certDados = {
+                                            dataEmissao: modal.querySelector('#ibma-edit-data').value,
+                                            observacao: modal.querySelector('#ibma-edit-obs').value,
+                                        };
+                                        localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
+                                    }
+                                    closeModal();
+                                    renderView('alunos-ibma');
+                                };
                             };
+                        });
 
-                            // Remove discipline rows
-                            modal.querySelectorAll('.ibma-rm-disc').forEach(b => b.onclick = () => b.closest('.ibma-disc-row').remove());
 
-                            // Save
-                            modal.querySelector('#ibma-modal-save').onclick = () => {
-                                const rows = modal.querySelectorAll('.ibma-disc-row');
-                                const boletimDados = Array.from(rows).map(r => ({
-                                    disciplina: r.querySelector('.disc-nome').value,
-                                    frequencia: r.querySelector('.disc-freq').value,
-                                    nota: r.querySelector('.disc-nota').value,
-                                    situacao: r.querySelector('.disc-sit').value,
-                                }));
-                                const list = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]');
-                                const idx = list.findIndex(a => String(a.id) === String(aluno.id));
-                                if (idx !== -1) {
-                                    list[idx].fullName = modal.querySelector('#ibma-edit-nome').value;
-                                    list[idx].phone = modal.querySelector('#ibma-edit-tel').value;
-                                    list[idx].email = modal.querySelector('#ibma-edit-email').value;
-                                    list[idx].boletimDados = boletimDados;
-                                    list[idx].certDados = {
-                                        dataEmissao: modal.querySelector('#ibma-edit-data').value,
-                                        observacao: modal.querySelector('#ibma-edit-obs').value,
-                                    };
-                                    localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
-                                }
-                                closeModal();
+                        document.querySelectorAll('.ibma-delete-btn').forEach(btn => {
+                            btn.onclick = () => {
+                                if (!confirm('Excluir este aluno?')) return;
+                                const list = safeLocalGet().filter(a => String(a.id) !== String(btn.dataset.id));
+                                localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
                                 renderView('alunos-ibma');
                             };
-                        };
-                    });
+                        });
+                    }, 0);
+                    break;
+                }
+                case 'professores-ibma': {
+                    const profList = safeLocalGet();
 
-
-                    document.querySelectorAll('.ibma-delete-btn').forEach(btn => {
-                        btn.onclick = () => {
-                            if (!confirm('Excluir este aluno?')) return;
-                            const list = JSON.parse(localStorage.getItem('alunos-escolas-ibma') || '[]').filter(a => String(a.id) !== String(btn.dataset.id));
-                            localStorage.setItem('alunos-escolas-ibma', JSON.stringify(list));
-                            renderView('alunos-ibma');
-                        };
-                    });
-                }, 0);
-                break;
-            }
-            case 'professores-ibma': {
-                const profList = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]');
-
-                html = `
+                    html = `
                     <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 28px;">
                         <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
                             <i data-lucide="graduation-cap" style="width: 30px; height: 30px;"></i>
@@ -2601,30 +2460,30 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `}
                 `;
-                setTimeout(() => {
-                    lucide.createIcons();
-                    document.querySelectorAll('.ibma-del-prof-btn').forEach(btn => {
-                        btn.onclick = () => {
-                            if (!confirm('Excluir este professor?')) return;
-                            const list = JSON.parse(localStorage.getItem('professores-escolas-ibma') || '[]')
-                                .filter(p => String(p.id) !== String(btn.dataset.id));
-                            localStorage.setItem('professores-escolas-ibma', JSON.stringify(list));
-                            renderView('professores-ibma');
-                        };
-                    });
-                }, 0);
-                break;
-            }
-            case 'modulos-ibma': {
+                    setTimeout(() => {
+                        lucide.createIcons();
+                        document.querySelectorAll('.ibma-del-prof-btn').forEach(btn => {
+                            btn.onclick = () => {
+                                if (!confirm('Excluir este professor?')) return;
+                                const list = safeLocalGet()
+                                    .filter(p => String(p.id) !== String(btn.dataset.id));
+                                localStorage.setItem('professores-escolas-ibma', JSON.stringify(list));
+                                renderView('professores-ibma');
+                            };
+                        });
+                    }, 0);
+                    break;
+                }
+                case 'modulos-ibma': {
 
-                const modulosIbma = [
-                    { id: 'membresia', nome: 'Membresia', icon: 'user-check', url: 'https://drive.google.com/drive/folders/1YaUTtYRvjIOGILbRJZxlT-nVIA7OWRxe' },
-                    { id: 'discipulado', nome: 'Discipulado', icon: 'users', url: null },
-                    { id: 'batismo', nome: 'Batismo', icon: 'droplet', url: null },
-                    { id: 'oracao', nome: 'Oração', icon: 'heart-handshake', url: null },
-                    { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star', url: null }
-                ];
-                html = `
+                    const modulosIbma = [
+                        { id: 'membresia', nome: 'Membresia', icon: 'user-check', url: 'https://drive.google.com/drive/folders/1YaUTtYRvjIOGILbRJZxlT-nVIA7OWRxe' },
+                        { id: 'discipulado', nome: 'Discipulado', icon: 'users', url: null },
+                        { id: 'batismo', nome: 'Batismo', icon: 'droplet', url: null },
+                        { id: 'oracao', nome: 'Oração', icon: 'heart-handshake', url: null },
+                        { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star', url: null }
+                    ];
+                    html = `
                     <div class="view-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
                         <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
                             <i data-lucide="layers" style="width: 30px; height: 30px;"></i>
@@ -2646,19 +2505,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         `).join('')}
                     </div>
                 `;
-                setTimeout(() => lucide.createIcons(), 0);
-                break;
-            }
-            case 'modulos-sebitam': {
-                // Módulos do SEBITAM - visível para professores, admins e secretários
-                const modulosSebitam = [
-                    { id: 1, title: 'Módulo 1: Fundamentos', icon: 'book-open', subs: ['Bibliologia', 'Teontologia', 'Introdução N.T', 'Introdução A.T'] },
-                    { id: 2, title: 'Módulo 2: Contexto Histórico', icon: 'map', subs: ['Geografia Bíblica', 'Hermenêutica', 'Período Inter bíblico', 'Ética Cristã'] },
-                    { id: 3, title: 'Módulo 3: Doutrinas Específica', icon: 'layers', subs: ['Soteriologia', 'Eclesiologia', 'Escatologia', 'Homlética'] },
-                    { id: 4, title: 'Módulo 4: Teologia Aplicada', icon: 'briefcase', subs: ['Teologia Contemporânea', 'In. T. Bíblica A.T', 'In. T. Bíblica N.T', 'Teologia Pastoral'] },
-                    { id: 5, title: 'Módulo 5: Prática Pastoral', icon: 'heart', subs: ['Exegese Bíblica', 'Psicologia Pastoral'] },
-                ];
-                html = `
+                    setTimeout(() => lucide.createIcons(), 0);
+                    break;
+                }
+                case 'modulos-sebitam': {
+                    // Módulos do SEBITAM - visível para professores, admins e secretários
+                    const modulosSebitam = [
+                        { id: 1, title: 'Módulo 1: Fundamentos', icon: 'book-open', subs: ['Bibliologia', 'Teontologia', 'Introdução N.T', 'Introdução A.T'] },
+                        { id: 2, title: 'Módulo 2: Contexto Histórico', icon: 'map', subs: ['Geografia Bíblica', 'Hermenêutica', 'Período Inter bíblico', 'Ética Cristã'] },
+                        { id: 3, title: 'Módulo 3: Doutrinas Específica', icon: 'layers', subs: ['Soteriologia', 'Eclesiologia', 'Escatologia', 'Homlética'] },
+                        { id: 4, title: 'Módulo 4: Teologia Aplicada', icon: 'briefcase', subs: ['Teologia Contemporânea', 'In. T. Bíblica A.T', 'In. T. Bíblica N.T', 'Teologia Pastoral'] },
+                        { id: 5, title: 'Módulo 5: Prática Pastoral', icon: 'heart', subs: ['Exegese Bíblica', 'Psicologia Pastoral'] },
+                    ];
+                    html = `
                     <div class="view-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
                         <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
                             <i data-lucide="layers" style="width: 30px; height: 30px;"></i>
@@ -2692,18 +2551,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         `).join('')}
                     </div>
                 `;
-                setTimeout(() => lucide.createIcons(), 0);
-                break;
-            }
-            case 'matricula-escolas': {
-                const matriculas = JSON.parse(localStorage.getItem('matriculas-escolas') || '[]');
-                const escolas = [
-                    { id: 'membresia', nome: 'Membresia', icon: 'user-check' },
-                    { id: 'discipulos', nome: 'Discípulos', icon: 'users' },
-                    { id: 'batismo', nome: 'Batismo', icon: 'droplet' },
-                    { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star' }
-                ];
-                html = `
+                    setTimeout(() => lucide.createIcons(), 0);
+                    break;
+                }
+                case 'matricula-escolas': {
+                    const matriculas = safeLocalGet();
+                    const escolas = [
+                        { id: 'membresia', nome: 'Membresia', icon: 'user-check' },
+                        { id: 'discipulos', nome: 'Discípulos', icon: 'users' },
+                        { id: 'batismo', nome: 'Batismo', icon: 'droplet' },
+                        { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star' }
+                    ];
+                    html = `
                     <div class="matricula-escolas-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
                         <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
                             <i data-lucide="school" style="width: 30px; height: 30px;"></i>
@@ -2763,7 +2622,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <thead><tr><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Escola</th><th>Ações</th></tr></thead>
                             <tbody>
                                 ${matriculas.length === 0 ? '<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">Nenhuma matrícula cadastrada.</td></tr>' :
-                        matriculas.slice().reverse().slice(0, 50).map(m => `
+                            matriculas.slice().reverse().slice(0, 50).map(m => `
                                     <tr data-matricula-id="${m.id}">
                                         <td>${m.fullName || m.nome || '-'}</td>
                                         <td>${m.phone || '-'}</td>
@@ -2783,34 +2642,34 @@ document.addEventListener('DOMContentLoaded', () => {
                         </table>
                     </div>
                 `;
-                setTimeout(() => {
-                    document.querySelectorAll('.escola-option input').forEach((radio, i) => {
-                        const card = radio.closest('label').querySelector('.escola-card');
-                        radio.addEventListener('change', () => {
-                            document.querySelectorAll('.escola-card').forEach(c => {
-                                c.style.borderColor = 'var(--border)';
-                                c.style.background = 'white';
+                    setTimeout(() => {
+                        document.querySelectorAll('.escola-option input').forEach((radio, i) => {
+                            const card = radio.closest('label').querySelector('.escola-card');
+                            radio.addEventListener('change', () => {
+                                document.querySelectorAll('.escola-card').forEach(c => {
+                                    c.style.borderColor = 'var(--border)';
+                                    c.style.background = 'white';
+                                });
+                                if (card) { card.style.borderColor = 'var(--primary)'; card.style.background = 'rgba(var(--primary-rgb), 0.05)'; }
                             });
-                            if (card) { card.style.borderColor = 'var(--primary)'; card.style.background = 'rgba(var(--primary-rgb), 0.05)'; }
                         });
-                    });
-                    document.getElementById('matricula-escolas-form').onsubmit = async (e) => {
-                        e.preventDefault();
-                        const fd = new FormData(e.target);
-                        const obj = { fullName: fd.get('fullName'), phone: fd.get('phone'), email: fd.get('email'), escola: fd.get('escola'), id: Date.now() };
-                        const list = JSON.parse(localStorage.getItem('matriculas-escolas') || '[]');
-                        list.push(obj);
-                        localStorage.setItem('matriculas-escolas', JSON.stringify(list));
-                        alert('Matrícula enviada com sucesso!');
-                        await renderView('matricula-escolas');
-                    };
-                    lucide.createIcons();
-                }, 0);
-                break;
-            }
-            case 'enrollment':
-                const activeType = data && data.type ? data.type : 'student';
-                html = `
+                        document.getElementById('matricula-escolas-form').onsubmit = async (e) => {
+                            e.preventDefault();
+                            const fd = new FormData(e.target);
+                            const obj = { fullName: fd.get('fullName'), phone: fd.get('phone'), email: fd.get('email'), escola: fd.get('escola'), id: Date.now() };
+                            const list = safeLocalGet();
+                            list.push(obj);
+                            localStorage.setItem('matriculas-escolas', JSON.stringify(list));
+                            alert('Matrícula enviada com sucesso!');
+                            await renderView('matricula-escolas');
+                        };
+                        lucide.createIcons();
+                    }, 0);
+                    break;
+                }
+                case 'enrollment':
+                    const activeType = data && data.type ? data.type : 'student';
+                    html = `
                     <div class="view-header" style="margin-bottom: 30px;">
                         <h2 style="font-size: 2.22rem; font-weight: 800; color: var(--text-main);">Cadastro Institucional</h2>
                         <span style="background: var(--primary); color: white; padding: 5px 12px; border-radius: 4px; font-size: 0.9rem; font-weight: 500; display: inline-block; margin-top: 5px;">Selecione o perfil que deseja cadastrar no sistema.</span>
@@ -2818,10 +2677,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     <div class="registration-role-selector" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 35px;">
                         ${['student', 'teacher', 'admin', 'secretary'].map(type => {
-                    const icons = { student: 'user', teacher: 'graduation-cap', admin: 'shield-check', secretary: 'briefcase' };
-                    const labels = { student: 'Aluno', teacher: 'Professor', admin: 'Administrador', secretary: 'Secretária' };
-                    const isActive = activeType === type;
-                    return `
+                        const icons = { student: 'user', teacher: 'graduation-cap', admin: 'shield-check', secretary: 'briefcase' };
+                        const labels = { student: 'Aluno', teacher: 'Professor', admin: 'Administrador', secretary: 'Secretária' };
+                        const isActive = activeType === type;
+                        return `
                                 <label class="role-option" style="text-align: center; cursor: pointer;">
                                     <input type="radio" name="reg-role" value="${type}" ${isActive ? 'checked' : ''} style="margin-bottom: 12px; transform: scale(1.3); accent-color: var(--primary);">
                                     <div class="role-box" style="padding: 25px 10px; border: 1.5px solid ${isActive ? 'var(--primary)' : 'var(--border)'}; border-radius: 15px; background: white; transition: all 0.3s; box-shadow: ${isActive ? '0 4px 15px rgba(0,0,0,0.05)' : 'none'}; position: relative;">
@@ -2830,18 +2689,18 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>
                                 </label>
                             `;
-                }).join('')}
+                    }).join('')}
                     </div>
 
                     <div id="reg-form-container"></div>
                 `;
-                setTimeout(() => {
-                    const renderForm = (type) => {
-                        const container = document.getElementById('reg-form-container');
-                        const roleNames = { student: 'Aluno', teacher: 'Professor(a)', admin: 'Administrador(a)', secretary: 'Secretário(a)' };
-                        const nameLabel = `Nome Completo do(a) ${roleNames[type]}`;
+                    setTimeout(() => {
+                        const renderForm = (type) => {
+                            const container = document.getElementById('reg-form-container');
+                            const roleNames = { student: 'Aluno', teacher: 'Professor(a)', admin: 'Administrador(a)', secretary: 'Secretário(a)' };
+                            const nameLabel = `Nome Completo do(a) ${roleNames[type]}`;
 
-                        let formHtml = `
+                            let formHtml = `
                             <div class="form-container" style="max-width: 900px; padding: 45px; background: white; border-radius: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.04); border: 1px solid var(--border); margin-top: 20px;">
                                 <form id="unified-reg-form">
                                     <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -2868,8 +2727,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                         </div>
                         `;
 
-                        if (type === 'student') {
-                            formHtml += `
+                            if (type === 'student') {
+                                formHtml += `
                                         <div class="form-group">
                                             <label style="font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: block; font-size: 0.9rem;">Turma (1 a 10)</label>
                                             <div class="input-field" style="position: relative;">
@@ -2900,9 +2759,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </div>
                                         </div>
                             `;
-                        } else {
-                            const extraIcon = type === 'teacher' ? 'graduation-cap' : (type === 'admin' ? 'shield-check' : 'briefcase');
-                            formHtml += `
+                            } else {
+                                const extraIcon = type === 'teacher' ? 'graduation-cap' : (type === 'admin' ? 'shield-check' : 'briefcase');
+                                formHtml += `
                                         <div class="form-group full-width" style="grid-column: 1 / -1; margin-top: 10px;">
                                             <label style="font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: block; font-size: 0.9rem;">Função / Cargo</label>
                                             <div class="input-field" style="position: relative;">
@@ -2911,9 +2770,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </div>
                                         </div>
                             `;
-                        }
+                            }
 
-                        formHtml += `
+                            formHtml += `
                                     </div>
                                     <div class="form-actions" style="border:none; margin-top: 40px;">
                                         <button type="submit" class="btn-primary" style="width: auto; padding: 15px 40px; border-radius: 10px; font-weight: 700; font-size: 1rem; color: white; border: none; cursor: pointer;">Salvar Cadastro</button>
@@ -2921,68 +2780,68 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </form>
                             </div>
                         `;
-                        container.innerHTML = formHtml;
-                        lucide.createIcons();
-                        const form = container.querySelector('form');
-                        form.onsubmit = async (e) => {
-                            e.preventDefault();
-                            const fd = new FormData(form);
-                            const val = Object.fromEntries(fd.entries());
-                            val.id = Date.now();
-                            const key = type === 'student' ? 'sebitam-students' : type === 'teacher' ? 'sebitam-teachers' : type === 'admin' ? 'sebitam-admins' : 'sebitam-secretaries';
-                            await dbAddItem(key, val);
+                            container.innerHTML = formHtml;
+                            lucide.createIcons();
+                            const form = container.querySelector('form');
+                            form.onsubmit = async (e) => {
+                                e.preventDefault();
+                                const fd = new FormData(form);
+                                const val = Object.fromEntries(fd.entries());
+                                val.id = Date.now();
+                                const key = type === 'student' ? 'sebitam-students' : type === 'teacher' ? 'sebitam-teachers' : type === 'admin' ? 'sebitam-admins' : 'sebitam-secretaries';
+                                await dbAddItem(key, val);
 
-                            const userEmail = (val.email || currentUser.email || 'unknown').toLowerCase();
-                            const userKey = `sebitam-user-${userEmail}`;
-                            localStorage.setItem(userKey, 'registered');
+                                const userEmail = (val.email || currentUser.email || 'unknown').toLowerCase();
+                                const userKey = `sebitam-user-${userEmail}`;
+                                localStorage.setItem(userKey, 'registered');
 
-                            alert('Cadastrado com sucesso! Você será direcionado para a Visão Geral.');
-                            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                            const overviewNav = document.querySelector('.nav-item[data-view="overview"]');
-                            if (overviewNav) overviewNav.classList.add('active');
-                            await renderView('overview');
+                                alert('Cadastrado com sucesso! Você será direcionado para a Visão Geral.');
+                                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                                const overviewNav = document.querySelector('.nav-item[data-view="overview"]');
+                                if (overviewNav) overviewNav.classList.add('active');
+                                await renderView('overview');
+                            };
                         };
+
+                        renderForm(activeType);
+                        document.querySelectorAll('input[name="reg-role"]').forEach(radio => {
+                            radio.addEventListener('change', (e) => {
+                                renderForm(e.target.value);
+                                // Visual transition handled by CSS variables indirectly or manual refresh
+                                const currentThemePrimary = getComputedStyle(document.body).getPropertyValue('--primary').trim();
+                                const currentThemeTextMain = getComputedStyle(document.body).getPropertyValue('--text-main').trim();
+
+                                document.querySelectorAll('.role-box').forEach(box => {
+                                    box.style.borderColor = 'var(--border)';
+                                    box.style.boxShadow = 'none';
+                                    box.querySelector('i').style.color = 'var(--text-muted)';
+                                    box.querySelector('span').style.color = 'var(--text-muted)';
+                                });
+                                const selectedBox = e.target.parentElement.querySelector('.role-box');
+                                selectedBox.style.borderColor = 'var(--primary)';
+                                selectedBox.style.boxShadow = '0 4px 15px rgba(0,0,0,0.05)';
+                                selectedBox.querySelector('i').style.color = 'var(--primary)';
+                                selectedBox.querySelector('span').style.color = 'var(--text-main)';
+                            });
+                        });
+                    }, 0);
+                    break;
+                case 'users':
+                    const activeUserTab = data && data.type ? data.type : 'student';
+                    const getStoreKey = (type) => {
+                        switch (type) {
+                            case 'student': return 'sebitam-students';
+                            case 'teacher': return 'sebitam-teachers';
+                            case 'admin': return 'sebitam-admins';
+                            case 'secretary': return 'sebitam-secretaries';
+                            default: return 'sebitam-students';
+                        }
                     };
 
-                    renderForm(activeType);
-                    document.querySelectorAll('input[name="reg-role"]').forEach(radio => {
-                        radio.addEventListener('change', (e) => {
-                            renderForm(e.target.value);
-                            // Visual transition handled by CSS variables indirectly or manual refresh
-                            const currentThemePrimary = getComputedStyle(document.body).getPropertyValue('--primary').trim();
-                            const currentThemeTextMain = getComputedStyle(document.body).getPropertyValue('--text-main').trim();
+                    const usersList = await dbGet(getStoreKey(activeUserTab));
+                    const labelMap = { student: 'Aluno', teacher: 'Professor', admin: 'Adm', secretary: 'Secretaria' };
 
-                            document.querySelectorAll('.role-box').forEach(box => {
-                                box.style.borderColor = 'var(--border)';
-                                box.style.boxShadow = 'none';
-                                box.querySelector('i').style.color = 'var(--text-muted)';
-                                box.querySelector('span').style.color = 'var(--text-muted)';
-                            });
-                            const selectedBox = e.target.parentElement.querySelector('.role-box');
-                            selectedBox.style.borderColor = 'var(--primary)';
-                            selectedBox.style.boxShadow = '0 4px 15px rgba(0,0,0,0.05)';
-                            selectedBox.querySelector('i').style.color = 'var(--primary)';
-                            selectedBox.querySelector('span').style.color = 'var(--text-main)';
-                        });
-                    });
-                }, 0);
-                break;
-            case 'users':
-                const activeUserTab = data && data.type ? data.type : 'student';
-                const getStoreKey = (type) => {
-                    switch (type) {
-                        case 'student': return 'sebitam-students';
-                        case 'teacher': return 'sebitam-teachers';
-                        case 'admin': return 'sebitam-admins';
-                        case 'secretary': return 'sebitam-secretaries';
-                        default: return 'sebitam-students';
-                    }
-                };
-
-                const usersList = await dbGet(getStoreKey(activeUserTab));
-                const labelMap = { student: 'Aluno', teacher: 'Professor', admin: 'Adm', secretary: 'Secretaria' };
-
-                html = `
+                    html = `
                         <div class="view-header" > <h2>Gestão de Usuários</h2></div>
                     <div class="tabs-container" style="display:flex; flex-wrap: wrap; gap:10px; margin-bottom:20px;">
                         <button class="tab-btn ${activeUserTab === 'admin' ? 'active' : ''}" data-type="admin">Administradores</button>
@@ -3003,24 +2862,24 @@ document.addEventListener('DOMContentLoaded', () => {
                             </thead>
                             <tbody>
                                 ${usersList.map(u => {
-                    const uName = u.fullName || u.name || 'Sem Nome';
-                    const nameCap = uName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-                    const roleInfo = activeUserTab === 'student' ? `Turma&nbsp;${u.grade || '-'}` : (labelMap[activeUserTab]);
-                    const email = u.email || u.institutionalEmail || '-';
-                    const phone = u.phone || '-';
+                        const uName = u.fullName || u.name || 'Sem Nome';
+                        const nameCap = uName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                        const roleInfo = activeUserTab === 'student' ? `Turma&nbsp;${u.grade || '-'}` : (labelMap[activeUserTab]);
+                        const email = u.email || u.institutionalEmail || '-';
+                        const phone = u.phone || '-';
 
-                    let badgeStyle = 'background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border);';
-                    if (activeUserTab === 'student') {
-                        if (u.plan === 'scholarship') {
-                            badgeStyle = 'background: rgba(168, 85, 247, 0.1); color: #a855f7; border: 1px solid #a855f7;';
-                        } else if (u.plan === 'half') {
-                            badgeStyle = 'background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid #3b82f6;';
-                        } else if (u.plan === 'integral') {
-                            badgeStyle = 'background: rgba(34, 197, 94, 0.1); color: #16a34a; border: 1px solid #16a34a;';
+                        let badgeStyle = 'background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border);';
+                        if (activeUserTab === 'student') {
+                            if (u.plan === 'scholarship') {
+                                badgeStyle = 'background: rgba(168, 85, 247, 0.1); color: #a855f7; border: 1px solid #a855f7;';
+                            } else if (u.plan === 'half') {
+                                badgeStyle = 'background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid #3b82f6;';
+                            } else if (u.plan === 'integral') {
+                                badgeStyle = 'background: rgba(34, 197, 94, 0.1); color: #16a34a; border: 1px solid #16a34a;';
+                            }
                         }
-                    }
 
-                    return `
+                        return `
                                         <tr>
                                             <td><strong>${nameCap}</strong></td>
                                             <td><span class="badge" style="${badgeStyle}">${roleInfo}</span></td>
@@ -3040,49 +2899,49 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </td>
                                         </tr>
                                     `;
-                }).join('')}
+                    }).join('')}
                                 ${usersList.length === 0 ? `<tr><td colspan="5" style="text-align:center; padding: 20px;">Nenhum registro encontrado.</td></tr>` : ''}
                             </tbody>
                         </table>
                     </div>`;
-                setTimeout(() => {
-                    document.querySelectorAll('.tab-btn').forEach(b => {
-                        b.onclick = () => renderView('users', { type: b.dataset.type });
-                    });
+                    setTimeout(() => {
+                        document.querySelectorAll('.tab-btn').forEach(b => {
+                            b.onclick = () => renderView('users', { type: b.dataset.type });
+                        });
 
-                    document.querySelectorAll('.delete-user').forEach(b => {
-                        b.onclick = async () => {
-                            const utype = b.dataset.type;
-                            const uid = b.dataset.id;
-                            console.log(`Deleting user: ${utype} with id ${uid} `);
-                            if (!confirm(`Tem certeza que deseja excluir este ${labelMap[utype]}?`)) return;
-                            const ukey = getStoreKey(utype);
-                            await dbDeleteItem(ukey, uid);
-                            await renderView('users', { type: utype });
-                        };
-                    });
+                        document.querySelectorAll('.delete-user').forEach(b => {
+                            b.onclick = async () => {
+                                const utype = b.dataset.type;
+                                const uid = b.dataset.id;
+                                console.log(`Deleting user: ${utype} with id ${uid} `);
+                                if (!confirm(`Tem certeza que deseja excluir este ${labelMap[utype]}?`)) return;
+                                const ukey = getStoreKey(utype);
+                                await dbDeleteItem(ukey, uid);
+                                await renderView('users', { type: utype });
+                            };
+                        });
 
 
-                    lucide.createIcons();
-                }, 0);
-                break;
-            case 'classes':
-                let allSt = await dbGet('sebitam-students');
-                if (currentUser.role === 'student') {
-                    allSt = allSt.filter(s => s.fullName.toLowerCase().trim() === currentUser.name.toLowerCase().trim());
-                }
-                // Professores vêem todos os alunos
-                html = `
+                        lucide.createIcons();
+                    }, 0);
+                    break;
+                case 'classes':
+                    let allSt = await dbGet('sebitam-students');
+                    if (currentUser.role === 'student') {
+                        allSt = allSt.filter(s => s.fullName.toLowerCase().trim() === currentUser.name.toLowerCase().trim());
+                    }
+                    // Professores vêem todos os alunos
+                    html = `
                         <div class="view-header" > <h2>${currentUser.role === 'student' ? 'Minha Situação Acadêmica' : 'Gestão de Alunos'}</h2></div>
                         <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid #eab308; color: #854d0e; padding: 15px 20px; border-radius: 12px; margin-bottom: 25px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 0.95rem; box-shadow: var(--shadow-sm);">
                             <i data-lucide="info" style="width: 20px; height: 20px;"></i>
                             <span>AVISO: DIA DE PAGAMENTO DA MENSALIDADE DO SEBTAM DIAS 05 A 10 DE CADA MÊS</span>
                         </div>`;
 
-                if (currentUser.role === 'student' && allSt.length > 0) {
-                    const me = allSt[0];
-                    const status = me.paymentStatus || (['integral', 'scholarship'].includes(me.plan) ? 'Pago' : 'Pendente');
-                    html += `
+                    if (currentUser.role === 'student' && allSt.length > 0) {
+                        const me = allSt[0];
+                        const status = me.paymentStatus || (['integral', 'scholarship'].includes(me.plan) ? 'Pago' : 'Pendente');
+                        html += `
                         <div class="welcome-card" style="margin-bottom: 30px; padding: 30px; background: linear-gradient(135deg, var(--primary), #1e40af); box-shadow: var(--shadow-lg); border-radius: 20px;">
                              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                                  <h3 style="color: white; margin: 0; font-size: 1.4rem;">Situação Cadastral Individual</h3>
@@ -3122,14 +2981,14 @@ document.addEventListener('DOMContentLoaded', () => {
                              </div>
                         </div>
                     `;
-                }
+                    }
 
-                html += `
+                    html += `
                             <div class="turmas-container">
                                 ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(g => {
-                    const inG = allSt.filter(s => s.grade == g);
-                    if (inG.length === 0) return '';
-                    return `
+                        const inG = allSt.filter(s => s.grade == g);
+                        if (inG.length === 0) return '';
+                        return `
                                 <div class="turma-section" style="background: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; box-shadow: var(--shadow); border: 1px solid var(--border);">
                                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--bg-main); padding-bottom: 12px;">
                                         <i data-lucide="users" style="color: var(--primary); width: 20px; height: 20px;"></i>
@@ -3148,34 +3007,34 @@ document.addEventListener('DOMContentLoaded', () => {
                                             </thead>
                                             <tbody>
                                                 ${inG.map(s => {
-                        const nameCap = (s.fullName || 'Sem Nome').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-                        const planLabel = s.plan === 'integral' ? 'Integral' : s.plan === 'half' ? 'Parcial' : 'Bolsista';
-                        const status = s.paymentStatus || (['integral', 'scholarship'].includes(s.plan) ? 'Pago' : 'Pendente');
+                            const nameCap = (s.fullName || 'Sem Nome').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                            const planLabel = s.plan === 'integral' ? 'Integral' : s.plan === 'half' ? 'Parcial' : 'Bolsista';
+                            const status = s.paymentStatus || (['integral', 'scholarship'].includes(s.plan) ? 'Pago' : 'Pendente');
 
-                        let stColor, stIcon, stBg, stLabel;
-                        if (s.plan === 'scholarship') {
-                            stLabel = 'Bolsista';
-                            stColor = '#a855f7'; // Purple
-                            stBg = 'rgba(168, 85, 247, 0.1)';
-                            stIcon = 'graduation-cap';
-                        } else if (status === 'Pago') {
-                            stLabel = 'Pago';
-                            if (s.plan === 'half') {
-                                stColor = '#3b82f6'; // Blue
-                                stBg = 'rgba(59, 130, 246, 0.1)';
-                            } else { // Integral
-                                stColor = '#16a34a'; // Green
-                                stBg = 'rgba(34, 197, 94, 0.1)';
+                            let stColor, stIcon, stBg, stLabel;
+                            if (s.plan === 'scholarship') {
+                                stLabel = 'Bolsista';
+                                stColor = '#a855f7'; // Purple
+                                stBg = 'rgba(168, 85, 247, 0.1)';
+                                stIcon = 'graduation-cap';
+                            } else if (status === 'Pago') {
+                                stLabel = 'Pago';
+                                if (s.plan === 'half') {
+                                    stColor = '#3b82f6'; // Blue
+                                    stBg = 'rgba(59, 130, 246, 0.1)';
+                                } else { // Integral
+                                    stColor = '#16a34a'; // Green
+                                    stBg = 'rgba(34, 197, 94, 0.1)';
+                                }
+                                stIcon = 'check-circle';
+                            } else {
+                                stLabel = 'Pendente';
+                                stColor = '#dc2626'; // Red
+                                stBg = 'rgba(239, 68, 68, 0.1)';
+                                stIcon = 'alert-circle';
                             }
-                            stIcon = 'check-circle';
-                        } else {
-                            stLabel = 'Pendente';
-                            stColor = '#dc2626'; // Red
-                            stBg = 'rgba(239, 68, 68, 0.1)';
-                            stIcon = 'alert-circle';
-                        }
 
-                        return `
+                            return `
                                                     <tr>
                                                         <td>
                                                             <div style="display:flex; align-items:center; gap:8px;">
@@ -3227,28 +3086,28 @@ document.addEventListener('DOMContentLoaded', () => {
                                                             </div>
                                                         </td>
                                                     </tr>`;
-                    }).join('')}
+                        }).join('')}
                                         </tbody>
                                     </table>
                                 </div>`;
-                }).join('')}
+                    }).join('')}
                             </div>`;
-                setTimeout(() => {
-                    document.querySelectorAll('.delete-st-class').forEach(b => {
-                        b.onclick = async () => {
-                            const uid = b.dataset.id;
-                            console.log(`Deleting student from class view: id ${uid} `);
-                            if (!confirm('Tem certeza que deseja excluir permanentemente este aluno?')) return;
-                            await dbDeleteItem('sebitam-students', uid);
-                            await renderView('classes');
-                        };
-                    });
-                    lucide.createIcons();
-                }, 0);
-                break;
-            case 'didatico':
-                const subView = data && data.tab ? data.tab : 'modules';
-                html = `
+                    setTimeout(() => {
+                        document.querySelectorAll('.delete-st-class').forEach(b => {
+                            b.onclick = async () => {
+                                const uid = b.dataset.id;
+                                console.log(`Deleting student from class view: id ${uid} `);
+                                if (!confirm('Tem certeza que deseja excluir permanentemente este aluno?')) return;
+                                await dbDeleteItem('sebitam-students', uid);
+                                await renderView('classes');
+                            };
+                        });
+                        lucide.createIcons();
+                    }, 0);
+                    break;
+                case 'didatico':
+                    const subView = data && data.tab ? data.tab : 'modules';
+                    html = `
                     <div class="view-header">
                         <h2>Didático Professores e Alunos</h2>
                         <p>Acesse materiais, módulos e produções acadêmicas.</p>
@@ -3261,8 +3120,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
 
-                if (subView === 'modules') {
-                    html += `
+                    if (subView === 'modules') {
+                        html += `
                         <div class="modules-grid-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
                             ${Object.entries(subjectMap).map(([id, data]) => `
                             <div class="module-card" style="background: white; padding: 25px; border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: var(--transition);">
@@ -3287,14 +3146,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         `).join('')}
                         </div>
                     `;
-                } else {
-                    const links = {
-                        'prod-teo': { url: 'https://drive.google.com/drive/folders/110x1MEaHbcaY7wOpIduiTobnt7Smeggj', title: 'Produção Teológica (PDF)', icon: 'book-marked' },
-                        'trabalhos': { url: 'https://drive.google.com/drive/folders/1HXSZPrzEdqbZiVtHmVcRwN3dODs1qASS', title: 'Trabalhos Alunos', icon: 'folder-kanban' },
-                        'material-prof': { url: 'https://drive.google.com/drive/folders/1xQbSx_GCR9IqF3k-d7ESNJ8S2C4UcrIF', title: 'Material Professores', icon: 'book-text' }
-                    };
-                    const activeLink = links[subView];
-                    html += `
+                    } else {
+                        const links = {
+                            'prod-teo': { url: 'https://drive.google.com/drive/folders/110x1MEaHbcaY7wOpIduiTobnt7Smeggj', title: 'Produção Teológica (PDF)', icon: 'book-marked' },
+                            'trabalhos': { url: 'https://drive.google.com/drive/folders/1HXSZPrzEdqbZiVtHmVcRwN3dODs1qASS', title: 'Trabalhos Alunos', icon: 'folder-kanban' },
+                            'material-prof': { url: 'https://drive.google.com/drive/folders/1xQbSx_GCR9IqF3k-d7ESNJ8S2C4UcrIF', title: 'Material Professores', icon: 'book-text' }
+                        };
+                        const activeLink = links[subView];
+                        html += `
                         <div class="welcome-card" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; padding: 60px;">
                             <div style="width: 80px; height: 80px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; border: 2px solid white;">
                                 <i data-lucide="${activeLink.icon}" style="width: 40px; height: 40px; color: white;"></i>
@@ -3306,34 +3165,34 @@ document.addEventListener('DOMContentLoaded', () => {
                             </a>
                         </div>
                     `;
-                }
+                    }
 
-                setTimeout(() => {
-                    document.querySelectorAll('.tab-btn').forEach(b => {
-                        b.onclick = () => renderView('didatico', { tab: b.dataset.tab });
-                    });
-                    lucide.createIcons();
-                }, 0);
-                break;
+                    setTimeout(() => {
+                        document.querySelectorAll('.tab-btn').forEach(b => {
+                            b.onclick = () => renderView('didatico', { tab: b.dataset.tab });
+                        });
+                        lucide.createIcons();
+                    }, 0);
+                    break;
 
-            case 'mensalidades': {
-                const allFinanceSt = await dbGet('sebitam-students');
-                let displayStudents = allFinanceSt;
-                if (currentUser.role === 'student') {
-                    displayStudents = allFinanceSt.filter(s => s.fullName.toLowerCase().trim() === currentUser.name.toLowerCase().trim());
-                }
+                case 'mensalidades': {
+                    const allFinanceSt = await dbGet('sebitam-students');
+                    let displayStudents = allFinanceSt;
+                    if (currentUser.role === 'student') {
+                        displayStudents = allFinanceSt.filter(s => s.fullName.toLowerCase().trim() === currentUser.name.toLowerCase().trim());
+                    }
 
-                const today = new Date();
-                // Logic: Start from February. If today is Jan, show Feb. Else show current month.
-                // 0=Jan, 1=Feb. If month is 0, set to 1. Else keep as is.
-                if (today.getMonth() === 0) {
-                    today.setMonth(1);
-                }
-                const currentMonth = today.toLocaleString('pt-BR', { month: 'long' });
-                const currentMonthCapitalized = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
-                const currentYear = today.getFullYear();
+                    const today = new Date();
+                    // Logic: Start from February. If today is Jan, show Feb. Else show current month.
+                    // 0=Jan, 1=Feb. If month is 0, set to 1. Else keep as is.
+                    if (today.getMonth() === 0) {
+                        today.setMonth(1);
+                    }
+                    const currentMonth = today.toLocaleString('pt-BR', { month: 'long' });
+                    const currentMonthCapitalized = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
+                    const currentYear = today.getFullYear();
 
-                html = `
+                    html = `
                     <div class="view-header">
                         <h2>${currentUser.role === 'student' ? 'Minha Situação Financeira' : 'Sebitam Mensalidades'}</h2>
                         <p>${currentUser.role === 'student' ? 'Acompanhe sua situação financeira e histórico de pagamentos.' : 'Controle financeiro e monitoramento de mensalidades.'}</p>
@@ -3343,14 +3202,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span>AVISO: DIA DE PAGAMENTO DA MENSALIDADE DO SEBTAM DIAS 05 A 10 DE CADA MÊS</span>
                     </div>`;
 
-                // Card individual para alunos
-                if (currentUser.role === 'student' && displayStudents.length > 0) {
-                    const me = displayStudents[0];
-                    const status = me.paymentStatus || (['integral', 'scholarship'].includes(me.plan) ? 'Pago' : 'Pendente');
-                    const planText = me.plan === 'integral' ? 'Integral' : me.plan === 'half' ? 'Parcial' : 'Bolsista';
-                    const valorMensal = me.plan === 'integral' ? 'R$ 70,00' : me.plan === 'half' ? 'R$ 35,00' : 'Isento';
+                    // Card individual para alunos
+                    if (currentUser.role === 'student' && displayStudents.length > 0) {
+                        const me = displayStudents[0];
+                        const status = me.paymentStatus || (['integral', 'scholarship'].includes(me.plan) ? 'Pago' : 'Pendente');
+                        const planText = me.plan === 'integral' ? 'Integral' : me.plan === 'half' ? 'Parcial' : 'Bolsista';
+                        const valorMensal = me.plan === 'integral' ? 'R$ 70,00' : me.plan === 'half' ? 'R$ 35,00' : 'Isento';
 
-                    html += `
+                        html += `
                         <div class="welcome-card" style="margin-bottom: 30px; padding: 35px; background: linear-gradient(135deg, ${status === 'Pago' ? '#10b981' : '#ef4444'}, ${status === 'Pago' ? '#059669' : '#dc2626'}); box-shadow: var(--shadow-lg); border-radius: 20px;">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                                 <h3 style="color: white; margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 10px;">
@@ -3400,8 +3259,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                                 <p style="color: rgba(255,255,255,0.95); font-size: 0.9rem; line-height: 1.6; margin: 0;">
                                     ${status === 'Pago'
-                                ? 'Sua mensalidade está em dia! Obrigado por manter seus estudos em ordem.'
-                                : 'Entre em contato com a secretaria para regularizar sua situação financeira. Sua dedicação aos estudos é importante para nós!'}
+                                    ? 'Sua mensalidade está em dia! Obrigado por manter seus estudos em ordem.'
+                                    : 'Entre em contato com a secretaria para regularizar sua situação financeira. Sua dedicação aos estudos é importante para nós!'}
                                 </p>
                             </div>
                             ` : `
@@ -3417,9 +3276,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             `}
                         </div>
                     `;
-                }
+                    }
 
-                html += `
+                    html += `
                     <div class="table-container">
                         <table class="data-table">
                             <thead>
@@ -3435,10 +3294,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             </thead>
                             <tbody>
                                 ${displayStudents.map(s => {
-                    const status = s.paymentStatus || (['integral', 'scholarship'].includes(s.plan) ? 'Pago' : 'Pendente');
-                    const planText = s.plan === 'integral' ? 'Integral' : s.plan === 'half' ? 'Parcial' : 'Bolsista';
-                    const valorMensal = s.plan === 'integral' ? 'R$ 70,00' : s.plan === 'half' ? 'R$ 35,00' : '-';
-                    return `
+                        const status = s.paymentStatus || (['integral', 'scholarship'].includes(s.plan) ? 'Pago' : 'Pendente');
+                        const planText = s.plan === 'integral' ? 'Integral' : s.plan === 'half' ? 'Parcial' : 'Bolsista';
+                        const valorMensal = s.plan === 'integral' ? 'R$ 70,00' : s.plan === 'half' ? 'R$ 35,00' : '-';
+                        return `
                                         <tr>
                                             <td><strong style="font-size: 0.95rem;">${s.fullName}</strong></td>
                                             ${currentUser.role !== 'student' ? `
@@ -3464,7 +3323,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                             ${currentUser.role !== 'student' ? `<td><strong style="color: var(--primary); font-size: 0.9rem;">${valorMensal}</strong></td>` : ''}
                                         </tr>
                                     `;
-                }).join('')}
+                    }).join('')}
                                 ${displayStudents.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding: 30px;">Nenhum registro financeiro encontrado.</td></tr>' : ''}
                             </tbody>
                         </table>
@@ -3476,12 +3335,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         </p>
                     </div>
                 `;
-                setTimeout(() => lucide.createIcons(), 0);
-                break;
-            }
+                    setTimeout(() => lucide.createIcons(), 0);
+                    break;
+                }
 
-            case 'themes':
-                html = `
+                case 'themes':
+                    html = `
                     <div class="view-header">
                         <h2>Personalizar Aparência</h2>
                         <p>Escolha o tema visual do sistema que melhor lhe agrada.</p>
@@ -3516,40 +3375,40 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
-                setTimeout(() => {
-                    document.querySelectorAll('.theme-option-card').forEach(btn => {
-                        // Highlight current theme
-                        const currentTheme = localStorage.getItem('sebitam-theme') || 'professional';
-                        if (btn.dataset.theme === currentTheme) {
-                            btn.style.borderColor = 'var(--primary)';
-                            btn.style.background = 'rgba(var(--primary-rgb), 0.05)';
-                        }
+                    setTimeout(() => {
+                        document.querySelectorAll('.theme-option-card').forEach(btn => {
+                            // Highlight current theme
+                            const currentTheme = localStorage.getItem('sebitam-theme') || 'professional';
+                            if (btn.dataset.theme === currentTheme) {
+                                btn.style.borderColor = 'var(--primary)';
+                                btn.style.background = 'rgba(var(--primary-rgb), 0.05)';
+                            }
 
-                        btn.onclick = () => {
-                            const theme = btn.dataset.theme;
-                            // Safe class removal to preserve user role and other classes
-                            document.body.classList.remove('theme-man', 'theme-woman', 'theme-professional', 'theme-elegant', 'theme-nature', 'theme-spiritual');
-                            document.body.classList.add(`theme-${theme}`);
+                            btn.onclick = () => {
+                                const theme = btn.dataset.theme;
+                                // Safe class removal to preserve user role and other classes
+                                document.body.classList.remove('theme-man', 'theme-woman', 'theme-professional', 'theme-elegant', 'theme-nature', 'theme-spiritual');
+                                document.body.classList.add(`theme-${theme}`);
 
-                            localStorage.setItem('sebitam-theme', theme);
+                                localStorage.setItem('sebitam-theme', theme);
 
-                            // Visual feedback
-                            document.querySelectorAll('.theme-option-card').forEach(b => {
-                                b.style.borderColor = 'var(--border)';
-                                b.style.background = 'white';
-                            });
-                            btn.style.borderColor = 'var(--primary)';
-                            btn.style.background = 'rgba(var(--primary-rgb), 0.05)';
+                                // Visual feedback
+                                document.querySelectorAll('.theme-option-card').forEach(b => {
+                                    b.style.borderColor = 'var(--border)';
+                                    b.style.background = 'white';
+                                });
+                                btn.style.borderColor = 'var(--primary)';
+                                btn.style.background = 'rgba(var(--primary-rgb), 0.05)';
 
-                            alert(`Tema ${btn.querySelector('span').textContent} aplicado!`);
-                        };
-                    });
-                    lucide.createIcons();
-                }, 0);
-                break;
+                                alert(`Tema ${btn.querySelector('span').textContent} aplicado!`);
+                            };
+                        });
+                        lucide.createIcons();
+                    }, 0);
+                    break;
 
-            case 'institucional':
-                html = `
+                case 'institucional':
+                    html = `
                     <div class="view-header">
                         <h2>Sebitam Institucional</h2>
                         <p>Nossa missão, visão e compromisso com o Reino.</p>
@@ -3599,11 +3458,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 `;
-                setTimeout(() => lucide.createIcons(), 0);
-                break;
+                    setTimeout(() => lucide.createIcons(), 0);
+                    break;
 
-            case 'termo':
-                html = `
+                case 'termo':
+                    html = `
                     <div class="view-header">
                         <h2>Normas Sebitam</h2>
                         <p>Documentação oficial, diretrizes acadêmicas e regimento interno.</p>
@@ -3648,45 +3507,45 @@ document.addEventListener('DOMContentLoaded', () => {
                         </p>
                     </div>
                 `;
-                setTimeout(() => lucide.createIcons(), 0);
-                break;
+                    setTimeout(() => lucide.createIcons(), 0);
+                    break;
 
-            case 'finance': {
-                const allFinanceSt = await dbGet('sebitam-students');
-                const selectedGrade = data && data.grade ? data.grade : 'all';
+                case 'finance': {
+                    const allFinanceSt = await dbGet('sebitam-students');
+                    const selectedGrade = data && data.grade ? data.grade : 'all';
 
-                const finStudents = selectedGrade === 'all'
-                    ? allFinanceSt
-                    : allFinanceSt.filter(s => s.grade == selectedGrade);
+                    const finStudents = selectedGrade === 'all'
+                        ? allFinanceSt
+                        : allFinanceSt.filter(s => s.grade == selectedGrade);
 
-                // Definição de valores monetários por plano
-                const PRICES = { integral: 70, half: 35, scholarship: 0 };
+                    // Definição de valores monetários por plano
+                    const PRICES = { integral: 70, half: 35, scholarship: 0 };
 
-                let totalExpected = 0;
-                let totalReceived = 0;
+                    let totalExpected = 0;
+                    let totalReceived = 0;
 
-                const processedPayments = finStudents.map(s => {
-                    const status = s.paymentStatus || (['integral', 'scholarship'].includes(s.plan) ? 'Pago' : 'Pendente');
-                    const value = PRICES[s.plan] || 0;
-                    totalExpected += value;
-                    if (status === 'Pago') totalReceived += value;
-                    return { ...s, status, value };
-                });
+                    const processedPayments = finStudents.map(s => {
+                        const status = s.paymentStatus || (['integral', 'scholarship'].includes(s.plan) ? 'Pago' : 'Pendente');
+                        const value = PRICES[s.plan] || 0;
+                        totalExpected += value;
+                        if (status === 'Pago') totalReceived += value;
+                        return { ...s, status, value };
+                    });
 
-                const numPaid = processedPayments.filter(p => p.status === 'Pago').length;
-                const numPending = processedPayments.filter(p => p.status === 'Pendente').length;
+                    const numPaid = processedPayments.filter(p => p.status === 'Pago').length;
+                    const numPending = processedPayments.filter(p => p.status === 'Pendente').length;
 
-                const today = new Date();
-                today.setDate(1); // Set to 1st to prevent overflow
-                // Logic: Start from February. If today is Jan, show Feb (1). Else show current month.
-                // Note: getMonth() is 0-indexed.
-                if (today.getMonth() === 0) {
-                    today.setMonth(1);
-                }
-                const displayMonth = today.toLocaleString('pt-BR', { month: 'long' });
-                const displayMonthCapitalized = displayMonth.charAt(0).toUpperCase() + displayMonth.slice(1);
+                    const today = new Date();
+                    today.setDate(1); // Set to 1st to prevent overflow
+                    // Logic: Start from February. If today is Jan, show Feb (1). Else show current month.
+                    // Note: getMonth() is 0-indexed.
+                    if (today.getMonth() === 0) {
+                        today.setMonth(1);
+                    }
+                    const displayMonth = today.toLocaleString('pt-BR', { month: 'long' });
+                    const displayMonthCapitalized = displayMonth.charAt(0).toUpperCase() + displayMonth.slice(1);
 
-                html = `
+                    html = `
                     <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 20px;">
                         <div>
                             <h2>Painel Financeiro</h2>
@@ -3784,31 +3643,31 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </thead>
                                     <tbody>
                                         ${processedPayments.map(p => {
-                    let stColor, stIcon, stBg, stLabel;
+                        let stColor, stIcon, stBg, stLabel;
 
-                    if (p.plan === 'scholarship') {
-                        stLabel = 'Bolsista';
-                        stColor = '#a855f7'; // Purple
-                        stBg = 'rgba(168, 85, 247, 0.1)';
-                        stIcon = 'graduation-cap';
-                    } else if (p.status === 'Pago') {
-                        stLabel = 'Pago';
-                        if (p.plan === 'half') {
-                            stColor = '#3b82f6'; // Blue
-                            stBg = 'rgba(59, 130, 246, 0.1)';
+                        if (p.plan === 'scholarship') {
+                            stLabel = 'Bolsista';
+                            stColor = '#a855f7'; // Purple
+                            stBg = 'rgba(168, 85, 247, 0.1)';
+                            stIcon = 'graduation-cap';
+                        } else if (p.status === 'Pago') {
+                            stLabel = 'Pago';
+                            if (p.plan === 'half') {
+                                stColor = '#3b82f6'; // Blue
+                                stBg = 'rgba(59, 130, 246, 0.1)';
+                            } else {
+                                stColor = '#16a34a'; // Green
+                                stBg = 'rgba(34, 197, 94, 0.1)';
+                            }
+                            stIcon = 'check-circle';
                         } else {
-                            stColor = '#16a34a'; // Green
-                            stBg = 'rgba(34, 197, 94, 0.1)';
+                            stLabel = 'Pendente';
+                            stColor = '#dc2626'; // Red
+                            stBg = 'rgba(239, 68, 68, 0.1)';
+                            stIcon = 'alert-circle';
                         }
-                        stIcon = 'check-circle';
-                    } else {
-                        stLabel = 'Pendente';
-                        stColor = '#dc2626'; // Red
-                        stBg = 'rgba(239, 68, 68, 0.1)';
-                        stIcon = 'alert-circle';
-                    }
 
-                    return `
+                        return `
                                             <tr>
                                                 <td style="display: flex; align-items: center; gap: 8px;">
                                                     <div style="background: ${stBg}; padding: 4px; border-radius: 50%; display: flex; text-align: center; justify-content: center;">
@@ -3831,7 +3690,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 </td>
                                             </tr>
                                         `;
-                }).join('')}
+                    }).join('')}
                                         ${processedPayments.length === 0 ? '<tr><td colspan="4" style="text-align:center; padding: 30px;">Nenhum aluno encontrado para esta turma.</td></tr>' : ''}
                                     </tbody>
                                 </table>
@@ -3858,13 +3717,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </thead>
                                 <tbody>
                                     ${Array.from({ length: 11 }, (_, i) => {
-                    const date = new Date(new Date().getFullYear(), i + 1, 1);
-                    const monthName = date.toLocaleString('pt-BR', { month: 'long' });
-                    const monthNameCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-                    const year = date.getFullYear();
-                    const isPastOrCurrent = i <= new Date().getMonth();
+                        const date = new Date(new Date().getFullYear(), i + 1, 1);
+                        const monthName = date.toLocaleString('pt-BR', { month: 'long' });
+                        const monthNameCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                        const year = date.getFullYear();
+                        const isPastOrCurrent = i <= new Date().getMonth();
 
-                    return `
+                        return `
                                             <tr>
                                                 <td style="font-weight: 600;">${monthNameCap}</td>
                                                 <td>${year}</td>
@@ -3880,7 +3739,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                                 </td>
                                             </tr>
                                         `;
-                }).join('')}
+                    }).join('')}
                                 </tbody>
                             </table>
                         </div>
@@ -3888,83 +3747,83 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 
 
-                setTimeout(() => {
-                    if (typeof Chart === 'undefined') return;
+                    setTimeout(() => {
+                        if (typeof Chart === 'undefined') return;
 
-                    const filter = document.getElementById('finance-grade-filter');
-                    if (filter) {
-                        filter.onchange = (e) => renderView('finance', { grade: e.target.value });
-                    }
+                        const filter = document.getElementById('finance-grade-filter');
+                        if (filter) {
+                            filter.onchange = (e) => renderView('finance', { grade: e.target.value });
+                        }
 
-                    const ctxPayments = document.getElementById('paymentsChart');
-                    if (ctxPayments) {
-                        new Chart(ctxPayments, {
-                            type: 'doughnut',
-                            data: {
-                                labels: ['Recebido', 'Inadimplência'],
-                                datasets: [{
-                                    data: [totalReceived, totalExpected - totalReceived],
-                                    backgroundColor: ['#22c55e', '#ef4444'],
-                                    borderWidth: 0,
-                                    hoverOffset: 15
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'Outfit', size: 12 } } }
+                        const ctxPayments = document.getElementById('paymentsChart');
+                        if (ctxPayments) {
+                            new Chart(ctxPayments, {
+                                type: 'doughnut',
+                                data: {
+                                    labels: ['Recebido', 'Inadimplência'],
+                                    datasets: [{
+                                        data: [totalReceived, totalExpected - totalReceived],
+                                        backgroundColor: ['#22c55e', '#ef4444'],
+                                        borderWidth: 0,
+                                        hoverOffset: 15
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'Outfit', size: 12 } } }
+                                    }
                                 }
-                            }
-                        });
-                    }
-                    lucide.createIcons();
-                }, 100);
-                break;
-            }
-            case 'theology-ai':
-            case 'chat-sebitam': {
-                // ============================================================
-                // CHAT COM SUPABASE REALTIME
-                // ============================================================
-                const isSebitam = view === 'chat-sebitam';
-                const isTeacherChat = ['admin', 'teacher'].includes(currentUser.role);
-                const canDeleteChat = ['admin', 'teacher'].includes(currentUser.role);
-
-                let selectedTurmaChat = window.currentChatTurma || 1;
-                if (!isTeacherChat && currentUser.grade) {
-                    selectedTurmaChat = currentUser.grade;
+                            });
+                        }
+                        lucide.createIcons();
+                    }, 100);
+                    break;
                 }
+                case 'theology-ai':
+                case 'chat-sebitam': {
+                    // ============================================================
+                    // CHAT COM SUPABASE REALTIME
+                    // ============================================================
+                    const isSebitam = view === 'chat-sebitam';
+                    const isTeacherChat = ['admin', 'teacher'].includes(currentUser.role);
+                    const canDeleteChat = ['admin', 'teacher'].includes(currentUser.role);
 
-                // Canal da conversa: 'sebitam-turma-1' ... 'ibma'
-                const canalChat = isSebitam
-                    ? `sebitam-turma-${selectedTurmaChat}`
-                    : 'ibma';
-
-                // Utilitário: tempo relativo
-                const tempoRelativo = (isoOrMs) => {
-                    const d = new Date(isoOrMs);
-                    const diff = Math.floor((Date.now() - d.getTime()) / 1000);
-                    if (diff < 60) return 'agora';
-                    if (diff < 3600) return `há ${Math.floor(diff / 60)} min`;
-                    if (diff < 86400) {
-                        const h = Math.floor(diff / 3600);
-                        const m = Math.floor((diff % 3600) / 60);
-                        return m > 0 ? `há ${h}h ${m}min` : `há ${h}h`;
+                    let selectedTurmaChat = window.currentChatTurma || 1;
+                    if (!isTeacherChat && currentUser.grade) {
+                        selectedTurmaChat = currentUser.grade;
                     }
-                    const dias = Math.floor(diff / 86400);
-                    if (dias < 7) return dias === 1 ? 'há 1 dia' : `há ${dias} dias`;
-                    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-                };
 
-                // Constrói o HTML de uma mensagem
-                const buildMsgHTML = (m, idx) => {
-                    const isOwn = m.autor === currentUser.name;
-                    const roleLabel = m.role === 'admin' ? '👑 Admin' : m.role === 'teacher' ? '📚 Professor' : '🎓 Aluno';
-                    const canDel = canDeleteChat || m.autor === currentUser.name;
-                    const idBtn = `del-msg-${m.id || idx}`;
-                    const ts = tempoRelativo(m.created_at || m.time);
-                    return `
+                    // Canal da conversa: 'sebitam-turma-1' ... 'ibma'
+                    const canalChat = isSebitam
+                        ? `sebitam-turma-${selectedTurmaChat}`
+                        : 'ibma';
+
+                    // Utilitário: tempo relativo
+                    const tempoRelativo = (isoOrMs) => {
+                        const d = new Date(isoOrMs);
+                        const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+                        if (diff < 60) return 'agora';
+                        if (diff < 3600) return `há ${Math.floor(diff / 60)} min`;
+                        if (diff < 86400) {
+                            const h = Math.floor(diff / 3600);
+                            const m = Math.floor((diff % 3600) / 60);
+                            return m > 0 ? `há ${h}h ${m}min` : `há ${h}h`;
+                        }
+                        const dias = Math.floor(diff / 86400);
+                        if (dias < 7) return dias === 1 ? 'há 1 dia' : `há ${dias} dias`;
+                        return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    };
+
+                    // Constrói o HTML de uma mensagem
+                    const buildMsgHTML = (m, idx) => {
+                        const isOwn = m.autor === currentUser.name;
+                        const roleLabel = m.role === 'admin' ? '👑 Admin' : m.role === 'teacher' ? '📚 Professor' : '🎓 Aluno';
+                        const canDel = canDeleteChat || m.autor === currentUser.name;
+                        const idBtn = `del-msg-${m.id || idx}`;
+                        const ts = tempoRelativo(m.created_at || m.time);
+                        return `
                         <div class="message ${isOwn ? 'user' : 'ai'}" data-msg-id="${m.id || idx}">
                             <div class="msg-bubble shadow-sm" style="position: relative; max-width: 75%;">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 4px;">
@@ -3980,36 +3839,36 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div style="font-size: 0.7rem; opacity: 0.6; margin-top: 5px; text-align: right;">${ts}</div>
                             </div>
                         </div>`;
-                };
+                    };
 
-                // Renderiza lista de mensagens no container
-                const renderMsgs = (list) => {
-                    const el = document.getElementById('chat-messages');
-                    if (!el) return;
-                    if (list.length === 0) {
-                        el.innerHTML = `<div class="message ai">
+                    // Renderiza lista de mensagens no container
+                    const renderMsgs = (list) => {
+                        const el = document.getElementById('chat-messages');
+                        if (!el) return;
+                        if (list.length === 0) {
+                            el.innerHTML = `<div class="message ai">
                             <div class="msg-bubble shadow-sm" style="opacity:0.7;">
                                 <i data-lucide="message-circle" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>
                                 Nenhuma mensagem ainda. Seja o primeiro a conversar!
                             </div>
                         </div>`;
-                    } else {
-                        el.innerHTML = list.map((m, idx) => buildMsgHTML(m, idx)).join('');
-                        // Vincular botões de deletar
-                        el.querySelectorAll('.chat-delete-btn').forEach(btn => {
-                            btn.addEventListener('click', () => window.chatDeleteMsg(btn.dataset.id, btn.dataset.idx));
-                        });
-                    }
-                    el.scrollTop = el.scrollHeight;
-                    if (window.lucide) lucide.createIcons();
-                };
+                        } else {
+                            el.innerHTML = list.map((m, idx) => buildMsgHTML(m, idx)).join('');
+                            // Vincular botões de deletar
+                            el.querySelectorAll('.chat-delete-btn').forEach(btn => {
+                                btn.addEventListener('click', () => window.chatDeleteMsg(btn.dataset.id, btn.dataset.idx));
+                            });
+                        }
+                        el.scrollTop = el.scrollHeight;
+                        if (window.lucide) window.lucide.createIcons();
+                    };
 
-                // Gera opções de turma 1–10
-                const turmaOptions = Array.from({ length: 10 }, (_, i) => i + 1)
-                    .map(n => `<option value="${n}" ${selectedTurmaChat == n ? 'selected' : ''}>Turma ${n}</option>`)
-                    .join('');
+                    // Gera opções de turma 1–10
+                    const turmaOptions = Array.from({ length: 10 }, (_, i) => i + 1)
+                        .map(n => `<option value="${n}" ${selectedTurmaChat == n ? 'selected' : ''}>Turma ${n}</option>`)
+                        .join('');
 
-                html = `
+                    html = `
                     <div class="view-header">
                         <div style="display: flex; align-items: center; gap: 15px; width: 100%; flex-wrap: wrap;">
                             <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #818cf8); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 14px rgba(37,99,235,0.35);">
@@ -4065,370 +3924,370 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
 
-                setTimeout(async () => {
-                    const chatMessagesEl = document.getElementById('chat-messages');
-                    const chatInputEl = document.getElementById('chat-input');
-                    const sendBtnEl = document.getElementById('send-chat-btn');
-                    const statusBadge = document.getElementById('chat-status-badge');
+                    setTimeout(async () => {
+                        const chatMessagesEl = document.getElementById('chat-messages');
+                        const chatInputEl = document.getElementById('chat-input');
+                        const sendBtnEl = document.getElementById('send-chat-btn');
+                        const statusBadge = document.getElementById('chat-status-badge');
 
-                    // Cancelar subscription anterior se existir (troca de turma, etc.)
-                    if (window._chatRealtimeChannel) {
-                        try { await supabase.removeChannel(window._chatRealtimeChannel); } catch (_) { }
-                        window._chatRealtimeChannel = null;
-                    }
+                        // Cancelar subscription anterior se existir (troca de turma, etc.)
+                        if (window._chatRealtimeChannel) {
+                            try { await supabase.removeChannel(window._chatRealtimeChannel); } catch (_) { }
+                            window._chatRealtimeChannel = null;
+                        }
 
-                    // ---- Função de exclusão de mensagem ----
-                    window.chatDeleteMsg = async (msgId, fallbackIdx) => {
-                        if (!canDeleteChat) return;
-                        if (!confirm('Excluir esta mensagem?')) return;
-                        try {
-                            if (supabase && msgId && msgId !== 'undefined') {
-                                const { error } = await supabase
-                                    .from('mensagens')
-                                    .delete()
-                                    .eq('id', msgId);
-                                if (error) throw error;
-                                // A exclusão será refletida via realtime (ou re-fetch)
-                                // Por segurança, re-fetch
-                                await fetchAndRender();
-                            } else {
-                                // Fallback localStorage
-                                const list = JSON.parse(localStorage.getItem(`chat-${canalChat}`) || '[]');
-                                list.splice(Number(fallbackIdx), 1);
+                        // ---- Função de exclusão de mensagem ----
+                        window.chatDeleteMsg = async (msgId, fallbackIdx) => {
+                            if (!canDeleteChat) return;
+                            if (!confirm('Excluir esta mensagem?')) return;
+                            try {
+                                if (supabase && msgId && msgId !== 'undefined') {
+                                    const { error } = await supabase
+                                        .from('mensagens')
+                                        .delete()
+                                        .eq('id', msgId);
+                                    if (error) throw error;
+                                    // A exclusão será refletida via realtime (ou re-fetch)
+                                    // Por segurança, re-fetch
+                                    await fetchAndRender();
+                                } else {
+                                    // Fallback localStorage
+                                    const list = safeLocalGet();
+                                    list.splice(Number(fallbackIdx), 1);
+                                    localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
+                                    renderMsgs(list);
+                                }
+                            } catch (err) {
+                                console.error('Erro ao deletar mensagem:', err);
+                                alert('Erro ao excluir mensagem.');
+                            }
+                        };
+
+                        // ---- Buscar mensagens iniciais ----
+                        const fetchAndRender = async () => {
+                            try {
+                                if (supabase) {
+                                    const { data, error } = await supabase
+                                        .from('mensagens')
+                                        .select('*')
+                                        .eq('canal', canalChat)
+                                        .order('created_at', { ascending: true })
+                                        .limit(200);
+                                    if (error) throw error;
+                                    // Salvar cópia no localStorage como cache
+                                    localStorage.setItem(`chat-${canalChat}`, JSON.stringify(data));
+                                    renderMsgs(data);
+                                } else {
+                                    throw new Error('Supabase não disponível');
+                                }
+                            } catch (err) {
+                                console.warn('Chat: usando localStorage como fallback.', err);
+                                const cached = safeLocalGet();
+                                // Normalizar formato antigo (time → created_at, text → texto, author → autor)
+                                const normalized = cached.map((m, i) => ({
+                                    id: m.id || i,
+                                    canal: canalChat,
+                                    autor: m.autor || m.author || currentUser.name,
+                                    role: m.role || 'student',
+                                    texto: m.texto || m.text || '',
+                                    created_at: m.created_at || new Date(m.time || Date.now()).toISOString()
+                                }));
+                                renderMsgs(normalized);
+                                if (statusBadge) {
+                                    statusBadge.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:#f97316;display:inline-block;"></span> Offline (cache)`;
+                                    statusBadge.style.background = '#fff7ed';
+                                    statusBadge.style.color = '#9a3412';
+                                    statusBadge.style.borderColor = '#fdba74';
+                                }
+                            }
+                        };
+
+                        await fetchAndRender();
+
+                        // ---- Configurar Supabase Realtime ----
+                        if (supabase) {
+                            try {
+                                const channel = supabase
+                                    .channel(`chat-realtime-${canalChat}-${Date.now()}`)
+                                    .on('postgres_changes', {
+                                        event: 'INSERT',
+                                        schema: 'public',
+                                        table: 'mensagens',
+                                        filter: `canal=eq.${canalChat}`
+                                    }, (payload) => {
+                                        // Adicionar nova mensagem ao DOM sem re-renderizar tudo
+                                        const list = safeLocalGet();
+                                        const exists = list.some(m => m.id === payload.new.id);
+                                        if (!exists) {
+                                            list.push(payload.new);
+                                            localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
+                                            // Inserir no DOM incrementalmente
+                                            if (chatMessagesEl) {
+                                                // Remover mensagem vazia de boas vindas se existir
+                                                const emptyMsg = chatMessagesEl.querySelector('.chat-empty-hint');
+                                                if (emptyMsg) emptyMsg.remove();
+                                                const wrapper = document.createElement('div');
+                                                wrapper.innerHTML = buildMsgHTML(payload.new, list.length - 1);
+                                                const node = wrapper.firstElementChild;
+                                                chatMessagesEl.appendChild(node);
+                                                // Vincular botão deletar
+                                                const delBtn = node.querySelector('.chat-delete-btn');
+                                                if (delBtn) {
+                                                    delBtn.addEventListener('click', () => window.chatDeleteMsg(delBtn.dataset.id, delBtn.dataset.idx));
+                                                }
+                                                chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+                                                if (window.lucide) window.lucide.createIcons();
+                                            }
+                                        }
+                                    })
+                                    .on('postgres_changes', {
+                                        event: 'DELETE',
+                                        schema: 'public',
+                                        table: 'mensagens',
+                                        filter: `canal=eq.${canalChat}`
+                                    }, (payload) => {
+                                        // Remover mensagem do DOM
+                                        const el = chatMessagesEl && chatMessagesEl.querySelector(`[data-msg-id="${payload.old.id}"]`);
+                                        if (el) el.remove();
+                                        // Atualizar cache
+                                        const list = safeLocalGet()
+                                            .filter(m => String(m.id) !== String(payload.old.id));
+                                        localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
+                                    })
+                                    .subscribe((status) => {
+                                        if (!statusBadge) return;
+                                        if (status === 'SUBSCRIBED') {
+                                            statusBadge.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span> Ao vivo`;
+                                            statusBadge.style.background = '#f0fdf4';
+                                            statusBadge.style.color = '#15803d';
+                                            statusBadge.style.borderColor = '#86efac';
+                                        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                                            statusBadge.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block;"></span> Erro de conexão`;
+                                            statusBadge.style.background = '#fef2f2';
+                                            statusBadge.style.color = '#b91c1c';
+                                            statusBadge.style.borderColor = '#fca5a5';
+                                        }
+                                    });
+
+                                window._chatRealtimeChannel = channel;
+                            } catch (realtimeErr) {
+                                console.warn('Realtime não disponível:', realtimeErr);
+                            }
+                        }
+
+                        // ---- Enviar mensagem ----
+                        const handleSendChat = async () => {
+                            const text = chatInputEl ? chatInputEl.value.trim() : '';
+                            if (!text) return;
+                            const role = isTeacherChat ? (currentUser.role === 'admin' ? 'admin' : 'teacher') : 'student';
+                            const novaMensagem = {
+                                canal: canalChat,
+                                autor: currentUser.name,
+                                role,
+                                texto: text
+                            };
+
+                            // Desabilitar botão temporariamente (feedback visual)
+                            if (sendBtnEl) {
+                                sendBtnEl.disabled = true;
+                                sendBtnEl.style.opacity = '0.5';
+                            }
+                            if (chatInputEl) chatInputEl.value = '';
+
+                            try {
+                                if (supabase) {
+                                    const { error } = await supabase.from('mensagens').insert([novaMensagem]);
+                                    if (error) throw error;
+                                    // O Realtime vai capturar e exibir — não precisamos fazer nada aqui
+                                } else {
+                                    throw new Error('Supabase offline');
+                                }
+                            } catch (err) {
+                                console.warn('Salvando no localStorage (fallback):', err);
+                                // Fallback: salvar localmente e mostrar
+                                const offline = {
+                                    ...novaMensagem,
+                                    id: Date.now(),
+                                    created_at: new Date().toISOString()
+                                };
+                                const list = safeLocalGet();
+                                list.push(offline);
                                 localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
                                 renderMsgs(list);
-                            }
-                        } catch (err) {
-                            console.error('Erro ao deletar mensagem:', err);
-                            alert('Erro ao excluir mensagem.');
-                        }
-                    };
-
-                    // ---- Buscar mensagens iniciais ----
-                    const fetchAndRender = async () => {
-                        try {
-                            if (supabase) {
-                                const { data, error } = await supabase
-                                    .from('mensagens')
-                                    .select('*')
-                                    .eq('canal', canalChat)
-                                    .order('created_at', { ascending: true })
-                                    .limit(200);
-                                if (error) throw error;
-                                // Salvar cópia no localStorage como cache
-                                localStorage.setItem(`chat-${canalChat}`, JSON.stringify(data));
-                                renderMsgs(data);
-                            } else {
-                                throw new Error('Supabase não disponível');
-                            }
-                        } catch (err) {
-                            console.warn('Chat: usando localStorage como fallback.', err);
-                            const cached = JSON.parse(localStorage.getItem(`chat-${canalChat}`) || '[]');
-                            // Normalizar formato antigo (time → created_at, text → texto, author → autor)
-                            const normalized = cached.map((m, i) => ({
-                                id: m.id || i,
-                                canal: canalChat,
-                                autor: m.autor || m.author || currentUser.name,
-                                role: m.role || 'student',
-                                texto: m.texto || m.text || '',
-                                created_at: m.created_at || new Date(m.time || Date.now()).toISOString()
-                            }));
-                            renderMsgs(normalized);
-                            if (statusBadge) {
-                                statusBadge.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:#f97316;display:inline-block;"></span> Offline (cache)`;
-                                statusBadge.style.background = '#fff7ed';
-                                statusBadge.style.color = '#9a3412';
-                                statusBadge.style.borderColor = '#fdba74';
-                            }
-                        }
-                    };
-
-                    await fetchAndRender();
-
-                    // ---- Configurar Supabase Realtime ----
-                    if (supabase) {
-                        try {
-                            const channel = supabase
-                                .channel(`chat-realtime-${canalChat}-${Date.now()}`)
-                                .on('postgres_changes', {
-                                    event: 'INSERT',
-                                    schema: 'public',
-                                    table: 'mensagens',
-                                    filter: `canal=eq.${canalChat}`
-                                }, (payload) => {
-                                    // Adicionar nova mensagem ao DOM sem re-renderizar tudo
-                                    const list = JSON.parse(localStorage.getItem(`chat-${canalChat}`) || '[]');
-                                    const exists = list.some(m => m.id === payload.new.id);
-                                    if (!exists) {
-                                        list.push(payload.new);
-                                        localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
-                                        // Inserir no DOM incrementalmente
-                                        if (chatMessagesEl) {
-                                            // Remover mensagem vazia de boas vindas se existir
-                                            const emptyMsg = chatMessagesEl.querySelector('.chat-empty-hint');
-                                            if (emptyMsg) emptyMsg.remove();
-                                            const wrapper = document.createElement('div');
-                                            wrapper.innerHTML = buildMsgHTML(payload.new, list.length - 1);
-                                            const node = wrapper.firstElementChild;
-                                            chatMessagesEl.appendChild(node);
-                                            // Vincular botão deletar
-                                            const delBtn = node.querySelector('.chat-delete-btn');
-                                            if (delBtn) {
-                                                delBtn.addEventListener('click', () => window.chatDeleteMsg(delBtn.dataset.id, delBtn.dataset.idx));
-                                            }
-                                            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-                                            if (window.lucide) lucide.createIcons();
-                                        }
-                                    }
-                                })
-                                .on('postgres_changes', {
-                                    event: 'DELETE',
-                                    schema: 'public',
-                                    table: 'mensagens',
-                                    filter: `canal=eq.${canalChat}`
-                                }, (payload) => {
-                                    // Remover mensagem do DOM
-                                    const el = chatMessagesEl && chatMessagesEl.querySelector(`[data-msg-id="${payload.old.id}"]`);
-                                    if (el) el.remove();
-                                    // Atualizar cache
-                                    const list = JSON.parse(localStorage.getItem(`chat-${canalChat}`) || '[]')
-                                        .filter(m => String(m.id) !== String(payload.old.id));
-                                    localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
-                                })
-                                .subscribe((status) => {
-                                    if (!statusBadge) return;
-                                    if (status === 'SUBSCRIBED') {
-                                        statusBadge.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span> Ao vivo`;
-                                        statusBadge.style.background = '#f0fdf4';
-                                        statusBadge.style.color = '#15803d';
-                                        statusBadge.style.borderColor = '#86efac';
-                                    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-                                        statusBadge.innerHTML = `<span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block;"></span> Erro de conexão`;
-                                        statusBadge.style.background = '#fef2f2';
-                                        statusBadge.style.color = '#b91c1c';
-                                        statusBadge.style.borderColor = '#fca5a5';
-                                    }
-                                });
-
-                            window._chatRealtimeChannel = channel;
-                        } catch (realtimeErr) {
-                            console.warn('Realtime não disponível:', realtimeErr);
-                        }
-                    }
-
-                    // ---- Enviar mensagem ----
-                    const handleSendChat = async () => {
-                        const text = chatInputEl ? chatInputEl.value.trim() : '';
-                        if (!text) return;
-                        const role = isTeacherChat ? (currentUser.role === 'admin' ? 'admin' : 'teacher') : 'student';
-                        const novaMensagem = {
-                            canal: canalChat,
-                            autor: currentUser.name,
-                            role,
-                            texto: text
-                        };
-
-                        // Desabilitar botão temporariamente (feedback visual)
-                        if (sendBtnEl) {
-                            sendBtnEl.disabled = true;
-                            sendBtnEl.style.opacity = '0.5';
-                        }
-                        if (chatInputEl) chatInputEl.value = '';
-
-                        try {
-                            if (supabase) {
-                                const { error } = await supabase.from('mensagens').insert([novaMensagem]);
-                                if (error) throw error;
-                                // O Realtime vai capturar e exibir — não precisamos fazer nada aqui
-                            } else {
-                                throw new Error('Supabase offline');
-                            }
-                        } catch (err) {
-                            console.warn('Salvando no localStorage (fallback):', err);
-                            // Fallback: salvar localmente e mostrar
-                            const offline = {
-                                ...novaMensagem,
-                                id: Date.now(),
-                                created_at: new Date().toISOString()
-                            };
-                            const list = JSON.parse(localStorage.getItem(`chat-${canalChat}`) || '[]');
-                            list.push(offline);
-                            localStorage.setItem(`chat-${canalChat}`, JSON.stringify(list));
-                            renderMsgs(list);
-                        } finally {
-                            if (sendBtnEl) {
-                                sendBtnEl.disabled = false;
-                                sendBtnEl.style.opacity = '1';
-                            }
-                            if (chatInputEl) chatInputEl.focus();
-                        }
-                    };
-
-                    if (sendBtnEl) sendBtnEl.onclick = handleSendChat;
-                    if (chatInputEl) {
-                        chatInputEl.onkeydown = (e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); }
-                        };
-                    }
-
-                    // ---- Troca de turma (professor/admin no SEBITAM) ----
-                    if (isSebitam && isTeacherChat) {
-                        const selectorEl = document.getElementById('chat-turma-selector');
-                        if (selectorEl) {
-                            selectorEl.addEventListener('change', async (e) => {
-                                window.currentChatTurma = e.target.value;
-                                // Cancelar subscription atual antes de trocar
-                                if (window._chatRealtimeChannel) {
-                                    try { await supabase.removeChannel(window._chatRealtimeChannel); } catch (_) { }
-                                    window._chatRealtimeChannel = null;
+                            } finally {
+                                if (sendBtnEl) {
+                                    sendBtnEl.disabled = false;
+                                    sendBtnEl.style.opacity = '1';
                                 }
-                                renderView(view);
-                            });
-                        }
-                    }
+                                if (chatInputEl) chatInputEl.focus();
+                            }
+                        };
 
-                    lucide.createIcons();
-                }, 0);
-                break;
+                        if (sendBtnEl) sendBtnEl.onclick = handleSendChat;
+                        if (chatInputEl) {
+                            chatInputEl.onkeydown = (e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendChat(); }
+                            };
+                        }
+
+                        // ---- Troca de turma (professor/admin no SEBITAM) ----
+                        if (isSebitam && isTeacherChat) {
+                            const selectorEl = document.getElementById('chat-turma-selector');
+                            if (selectorEl) {
+                                selectorEl.addEventListener('change', async (e) => {
+                                    window.currentChatTurma = e.target.value;
+                                    // Cancelar subscription atual antes de trocar
+                                    if (window._chatRealtimeChannel) {
+                                        try { await supabase.removeChannel(window._chatRealtimeChannel); } catch (_) { }
+                                        window._chatRealtimeChannel = null;
+                                    }
+                                    renderView(view);
+                                });
+                            }
+                        }
+
+                        lucide.createIcons();
+                    }, 0);
+                    break;
+                }
+            }
+            if (html && contentBody) contentBody.innerHTML = html;
+            if (window.lucide) window.lucide.createIcons();
+        }
+
+        async function updatePaymentStatus(studentId, status) {
+            try {
+                console.log(`Atualizando pagamento: ID ${studentId} para ${status}`);
+                await dbUpdateItem('sebitam-students', studentId, { paymentStatus: status });
+                console.log("Pagamento atualizado com sucesso!");
+                alert(`Status de pagamento alterado para: ${status}`);
+                await renderView('classes');
+            } catch (err) {
+                console.error("Erro ao atualizar pagamento:", err);
+                alert("Erro ao atualizar pagamento: " + err.message);
             }
         }
-        if (html) contentBody.innerHTML = html;
-        lucide.createIcons();
-    }
 
-    async function updatePaymentStatus(studentId, status) {
-        try {
-            console.log(`Atualizando pagamento: ID ${studentId} para ${status}`);
-            await dbUpdateItem('sebitam-students', studentId, { paymentStatus: status });
-            console.log("Pagamento atualizado com sucesso!");
-            alert(`Status de pagamento alterado para: ${status}`);
-            await renderView('classes');
-        } catch (err) {
-            console.error("Erro ao atualizar pagamento:", err);
-            alert("Erro ao atualizar pagamento: " + err.message);
-        }
-    }
+        // Export functions to window for onclick handlers
+        window.renderGradeEditor = renderGradeEditor;
+        window.generateCertificate = generateCertificate;
+        window.printAcademicHistory = printAcademicHistory;
+        window.updatePaymentStatus = updatePaymentStatus;
+        window.printFinancialReport = printFinancialReport;
+        window.renderEditStudent = renderEditStudent;
 
-    // Export functions to window for onclick handlers
-    window.renderGradeEditor = renderGradeEditor;
-    window.generateCertificate = generateCertificate;
-    window.printAcademicHistory = printAcademicHistory;
-    window.updatePaymentStatus = updatePaymentStatus;
-    window.printFinancialReport = printFinancialReport;
-    window.renderEditStudent = renderEditStudent;
+        // Profile Icon Logic (Restored)
+        const avatarContainer = document.getElementById('profile-avatar-container');
+        const profileUpload = document.getElementById('profile-upload');
+        const userAvatarIcon = document.getElementById('user-avatar-icon');
 
-    // Profile Icon Logic (Restored)
-    const avatarContainer = document.getElementById('profile-avatar-container');
-    const profileUpload = document.getElementById('profile-upload');
-    const userAvatarIcon = document.getElementById('user-avatar-icon');
+        if (avatarContainer && profileUpload) {
+            avatarContainer.addEventListener('click', () => {
+                profileUpload.click();
+            });
 
-    if (avatarContainer && profileUpload) {
-        avatarContainer.addEventListener('click', () => {
-            profileUpload.click();
-        });
+            profileUpload.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
 
-        profileUpload.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    const base64 = event.target.result;
 
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const base64 = event.target.result;
-
-                // Update UI immediately
-                if (userAvatarIcon) {
-                    // Create img if doesn't exist or update
-                    let img = avatarContainer.querySelector('img');
-                    if (!img) {
-                        img = document.createElement('img');
-                        img.style.width = '100%';
-                        img.style.height = '100%';
-                        img.style.objectFit = 'cover';
-                        img.style.borderRadius = '50%';
-                        avatarContainer.appendChild(img);
-                        userAvatarIcon.style.display = 'none'; // Hide icon
-                    }
-                    img.src = base64;
-                }
-
-                // Update Data
-                if (currentUser) {
-                    currentUser.photo = base64;
-
-                    // Determine collection
-                    let collection = 'sebitam-students'; // default
-                    if (currentUser.role === 'admin') collection = 'sebitam-admins';
-                    if (currentUser.role === 'teacher') collection = 'sebitam-teachers';
-                    if (currentUser.role === 'secretary') collection = 'sebitam-secretaries';
-
-                    try {
-                        await dbUpdateItem(collection, currentUser.id, { photo: base64 });
-                        // Also update local storage user key if used
-                        const userKey = `sebitam-user-${currentUser.email}`;
-                        if (localStorage.getItem(userKey)) {
-                            // Logic to update stored user if needed, usually we re-fetch on login
+                    // Update UI immediately
+                    if (userAvatarIcon) {
+                        // Create img if doesn't exist or update
+                        let img = avatarContainer.querySelector('img');
+                        if (!img) {
+                            img = document.createElement('img');
+                            img.style.width = '100%';
+                            img.style.height = '100%';
+                            img.style.objectFit = 'cover';
+                            img.style.borderRadius = '50%';
+                            avatarContainer.appendChild(img);
+                            userAvatarIcon.style.display = 'none'; // Hide icon
                         }
-                    } catch (err) {
-                        console.error('Error saving photo:', err);
-                        alert('Erro ao salvar foto.');
+                        img.src = base64;
                     }
-                }
-            };
-            reader.readAsDataURL(file);
-        });
-    }
 
-    // Function to show avatar if exists
-    function updateAvatarUI(user) {
-        if (!avatarContainer) return;
-        const existingImg = avatarContainer.querySelector('img');
-        if (existingImg) existingImg.remove();
-        const icon = document.getElementById('user-avatar-icon');
+                    // Update Data
+                    if (currentUser) {
+                        currentUser.photo = base64;
 
-        if (user && user.photo) {
-            const img = document.createElement('img');
-            img.src = user.photo;
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.objectFit = 'cover';
-            img.style.borderRadius = '50%';
-            avatarContainer.appendChild(img);
-            if (icon) icon.style.display = 'none';
-        } else {
-            if (icon) icon.style.display = 'block';
+                        // Determine collection
+                        let collection = 'sebitam-students'; // default
+                        if (currentUser.role === 'admin') collection = 'sebitam-admins';
+                        if (currentUser.role === 'teacher') collection = 'sebitam-teachers';
+                        if (currentUser.role === 'secretary') collection = 'sebitam-secretaries';
+
+                        try {
+                            await dbUpdateItem(collection, currentUser.id, { photo: base64 });
+                            // Also update local storage user key if used
+                            const userKey = `sebitam-user-${currentUser.email}`;
+                            if (localStorage.getItem(userKey)) {
+                                // Logic to update stored user if needed, usually we re-fetch on login
+                            }
+                        } catch (err) {
+                            console.error('Error saving photo:', err);
+                            alert('Erro ao salvar foto.');
+                        }
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
         }
-    }
-    window.updateAvatarUI = updateAvatarUI;
 
-    // Super Admin Auto-Registration
-    async function checkAndRegisterSuperAdmin() {
-        if (!supabase) return;
-        const superAdminEmail = 'edukadoshmda@gmail.com';
-        const superAdminName = 'Luiz Eduardo Santos da Silva';
+        // Function to show avatar if exists
+        function updateAvatarUI(user) {
+            if (!avatarContainer) return;
+            const existingImg = avatarContainer.querySelector('img');
+            if (existingImg) existingImg.remove();
+            const icon = document.getElementById('user-avatar-icon');
 
-        try {
-            // Usando o nome correto da tabela em inglês
-            const { data, error } = await supabase.from('administradores').select('*').eq('email', superAdminEmail);
-            if (error) throw error;
-
-            if (data.length === 0) {
-                console.log("Registrando Super Administrador...");
-                await supabase.from('administradores').insert([{
-                    name: superAdminName,
-                    email: superAdminEmail,
-                    phone: 'Gestor'
-                }]);
+            if (user && user.photo) {
+                const img = document.createElement('img');
+                img.src = user.photo;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                img.style.borderRadius = '50%';
+                avatarContainer.appendChild(img);
+                if (icon) icon.style.display = 'none';
+            } else {
+                if (icon) icon.style.display = 'block';
             }
-        } catch (e) {
-            if (isNetworkError(e)) console.warn("⚠️ Sem conexão com Supabase; auto-registro ignorado.");
-            else console.error("Erro no auto-registro:", e);
         }
-    }
+        window.updateAvatarUI = updateAvatarUI;
 
-    // Run check em background; pré-render overview sem bloquear
-    checkAndRegisterSuperAdmin()
-        .then(() => { try { renderView('overview'); } catch (e) { console.warn('renderView overview:', e); } })
-        .catch(() => { /* falha silenciosa - login continua funcionando */ });
+        // Super Admin Auto-Registration
+        async function checkAndRegisterSuperAdmin() {
+            if (!supabase) return;
+            const superAdminEmail = 'edukadoshmda@gmail.com';
+            const superAdminName = 'Luiz Eduardo Santos da Silva';
+
+            try {
+                // Usando o nome correto da tabela em inglês
+                const { data, error } = await supabase.from('administradores').select('*').eq('email', superAdminEmail);
+                if (error) throw error;
+
+                if (data.length === 0) {
+                    console.log("Registrando Super Administrador...");
+                    await supabase.from('administradores').insert([{
+                        name: superAdminName,
+                        email: superAdminEmail,
+                        phone: 'Gestor'
+                    }]);
+                }
+            } catch (e) {
+                if (isNetworkError(e)) console.warn("⚠️ Sem conexão com Supabase; auto-registro ignorado.");
+                else console.error("Erro no auto-registro:", e);
+            }
+        }
+
+        // Run check em background; pré-render overview sem bloquear
+        checkAndRegisterSuperAdmin()
+            .then(() => { try { renderView('overview'); } catch (e) { console.warn('renderView overview:', e); } })
+            .catch(() => { /* falha silenciosa - login continua funcionando */ });
     } catch (err) {
         console.error('Erro crítico ao carregar SEBITAM:', err);
         document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;"><h2>Erro ao carregar</h2><p>Recarregue a página (Ctrl+F5 para limpar cache).</p><button onclick="location.reload(true)" style="padding:12px 24px;background:#0f172a;color:white;border:none;border-radius:8px;cursor:pointer;">Recarregar</button></div>';
