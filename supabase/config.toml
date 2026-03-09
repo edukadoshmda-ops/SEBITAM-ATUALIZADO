@@ -1,0 +1,6 @@
+# Configuração do Supabase - Edge Functions
+# https://supabase.com/docs/guides/functions/function-configuration
+
+# Healthcheck: endpoint público para UptimeRobot (sem autenticação)
+[functions.healthcheck]
+verify_jwt = false
