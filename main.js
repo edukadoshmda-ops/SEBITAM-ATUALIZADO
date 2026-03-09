@@ -3916,10 +3916,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <i data-lucide="send" style="width:22px; height:22px;"></i>
                                 </button>
                             </div>
-                            <p style="text-align:center; font-size:0.72rem; color:var(--text-muted); opacity:0.7; margin:4px 0 0;">
-                                <i data-lucide="shield-check" style="width:11px;height:11px;vertical-align:middle;"></i>
-                                Salvo no Supabase &bull; sincronização em tempo real
-                            </p>
                         </div>
                     </div>
                 `;
