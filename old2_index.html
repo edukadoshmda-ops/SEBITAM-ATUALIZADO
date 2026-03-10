@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>SEBITAM</title>
+    <meta name="description"
+        content="Plataforma educacional SEBITAM - Gestão para administradores, professores e alunos.">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SEBITAM">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo.jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Outfit:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=202602120136">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="theme-man">
+    <div id="app">
+        <!-- Login Screen -->
+        <section id="login-screen" class="screen active">
+            <div class="login-container">
+                <div class="login-card">
+                    <div class="login-header">
+                        <div class="logo-area">
+                            <img src="logo.jpg" alt="SEBITAM Logo" class="main-logo">
+                        </div>
+                        <h2 class="welcome-title">Seja bem vindo</h2>
+                        <p class="login-subtitle">Escolha o tipo de acesso</p>
+                    </div>
+
+                    <div class="login-type-selector">
+                        <button type="button" class="login-type-btn active" data-login-type="sebitam">
+                            <i data-lucide="graduation-cap"></i>
+                            <span>Login SEBITAM</span>
+                            <small>Seminário e Matrículas</small>
+                        </button>
+                        <button type="button" class="login-type-btn" data-login-type="escolas-ibma">
+                            <i data-lucide="church"></i>
+                            <span>Login Escolas IBMA</span>
+                            <small>Membresia, Discipulado, Batismo</small>
+                        </button>
+                    </div>
+
+                    <form id="login-form">
+                        <input type="hidden" id="login-type" name="loginType" value="sebitam">
+                        <div class="input-group">
+                            <div class="input-field">
+                                <i data-lucide="mail"></i>
+                                <input type="email" id="login-email" placeholder="Seu E-mail" required>
+                            </div>
+                            <div class="input-field">
+                                <i data-lucide="user"></i>
+                                <input type="text" id="login-name" placeholder="Seu Nome Completo" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary">Acessar Sistema</button>
+                    </form>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Screen -->
+        <section id="dashboard-screen" class="screen">
+            <div id="sidebar-overlay" class="sidebar-overlay"></div>
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <span class="sidebar-logo-text" id="sidebar-brand-text">SEBITAM</span>
+                    <button id="sidebar-close" class="sidebar-close-btn"
+                        style="display: none; background: transparent; border: none; color: white; cursor: pointer;">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <nav class="sidebar-nav">
+                    <a href="#" class="nav-item active" data-view="overview">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span id="nav-overview-label">Visão Geral</span>
+                    </a>
+                    <a href="#" class="nav-item nav-escolas-ibma-only" data-view="modulos-ibma">
+                        <i data-lucide="layers"></i>
+                        <span>Módulos</span>
+                    </a>
+                    <a href="#" class="nav-item" data-view="themes">
+                        <i data-lucide="palette"></i>
+                        <span>Personalizar Tema</span>
+                    </a>
+                    <a href="#" class="nav-item nav-escolas-ibma-only" data-view="theology-ai">
+                        <i data-lucide="message-circle"></i>
+                        <span>Chat</span>
+                    </a>
+                    <a href="#" class="nav-item nav-sebitam-only" data-view="theology-ai">
+                        <i data-lucide="message-circle"></i>
+                        <span>Chat</span>
+                    </a>
+
+                    <a href="#" class="nav-item access-admin access-secretary access-teacher" data-view="finance">
+                        <i data-lucide="trending-up"></i>
+                        <span>Dashboard Financeiro</span>
+                    </a>
+
+                </nav>
+                <div class="sidebar-footer">
+                    <button id="logout-btn" class="btn-logout">
+                        <i data-lucide="log-out"></i>
+                        <span>Sair</span>
+                    </button>
+                </div>
+            </aside>
+
+            <main class="main-content">
+                <header class="top-bar">
+                    <div class="header-left" style="display: flex; align-items: center; gap: 10px;">
+                        <button id="menu-toggle" class="menu-toggle">
+                            <i data-lucide="menu"></i>
+                        </button>
+                        <button id="back-btn" class="nav-btn-header" style="display: none;">
+                            <i data-lucide="arrow-left"></i>
+                        </button>
+                    </div>
+
+                    <div class="header-right mobile-only-header"
+                        style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: none;">
+                        <button id="header-logout-btn" class="nav-btn-header" style="color: #ef4444;">
+                            <i data-lucide="log-out"></i>
+                        </button>
+                    </div>
+                    <div class="search-area">
+                        <i data-lucide="search"></i>
+                        <input type="text" placeholder="Pesquisar...">
+                    </div>
+                    <div class="user-profile">
+                        <div class="user-info">
+                            <span id="user-name">Administrador</span>
+                            <small id="user-role">Admin</small>
+                        </div>
+                        <div class="avatar" id="profile-avatar-container" style="position: relative; cursor: pointer;"
+                            title="Alterar foto de perfil">
+                            <i data-lucide="camera" id="user-avatar-icon"></i>
+                            <div class="avatar-upload-overlay"
+                                style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; border-radius: 50%;">
+                                <i data-lucide="camera" style="color: white; width: 20px; height: 20px;"></i>
+                            </div>
+                            <input type="file" id="profile-upload" style="display: none;" accept="image/*">
+                        </div>
+                    </div>
+                </header>
+
+                <div class="content-body" id="dynamic-content">
+                    <!-- Dynamic Content based on role and selection -->
+                    <div class="welcome-card">
+                        <h1>Bem-vindo ao Painel SEBITAM</h1>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i data-lucide="users"></i></div>
+                            <div class="stat-value">1,240</div>
+                            <div class="stat-label">Total Alunos</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i data-lucide="graduation-cap"></i></div>
+                            <div class="stat-value">85</div>
+                            <div class="stat-label">Professores</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i data-lucide="book-open"></i></div>
+                            <div class="stat-value">42</div>
+                            <div class="stat-label">Cursos Ativos</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i data-lucide="trending-up"></i></div>
+                            <div class="stat-value">R$ 45k</div>
+                            <div class="stat-label">Faturamento</div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </section>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div id="pwa-install-banner" style="display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--primary, #0f172a); color: white; padding: 14px 24px; border-radius: 50px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 9999; cursor: pointer; font-weight: 600; font-size: 0.95rem; align-items: center; gap: 10px;">
+        <i data-lucide="download" style="width: 20px; height: 20px;"></i>
+        <span>Instalar App SEBITAM</span>
+    </div>
+
+    <!-- Supabase Configuration -->
+    <script src="supabase-config.js"></script>
+
+    <script src="main.js?v=202602120136"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // PWA - Registrar Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(() => {
+                    console.log('PWA: Service Worker registrado.');
+                }).catch((err) => console.warn('PWA: Erro ao registrar SW:', err));
+            });
+        }
+
+        // PWA - Botão Instalar (quando o app for instalável)
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const banner = document.getElementById('pwa-install-banner');
+            if (banner && !localStorage.getItem('pwa-install-dismissed')) {
+                banner.style.display = 'flex';
+                banner.onclick = () => {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then(() => { banner.style.display = 'none'; localStorage.setItem('pwa-install-dismissed', '1'); });
+                };
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        });
+    </script>
+</body>
+
+</html>
