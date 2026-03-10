@@ -1,7 +1,7 @@
 // ============================================================
 // SEBITAM — Service Worker v5  (PWA - HTML/JS nunca do cache)
 // ============================================================
-const CACHE_NAME = 'sebitam-v5';
+const CACHE_NAME = 'sebitam-v6';
 
 // NÃO pré-cachear index.html, main.js, style.css - sempre buscar da rede
 const ASSETS = [

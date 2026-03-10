@@ -367,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Login Logic
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const loginEmail = (document.getElementById('login-email')?.value || '').trim().toLowerCase();
+            const loginEmail = (document.getElementById('login-email')?.value || '').trim().toLowerCase().replace(/\s/g, '');
             let loginName = (document.getElementById('login-name')?.value || '').trim();
             const loginType = (document.getElementById('login-type') || {}).value || 'sebitam';
 
@@ -383,9 +383,10 @@ document.addEventListener('DOMContentLoaded', () => {
             let userFound = false;
 
             try {
-                // ⭐ SUPER ADMIN — edukadoshmda@gmail.com tem permissão total em SEBITAM e Escola IBMA
+                // ⭐ SUPER ADMIN — Prioridade máxima em SEBITAM e Escolas IBMA
                 const SUPER_ADMIN_EMAILS = ['edukadoshmda@gmail.com'];
-                if (SUPER_ADMIN_EMAILS.includes(loginEmail)) {
+                const isSuperAdmin = SUPER_ADMIN_EMAILS.some(em => em.trim().toLowerCase() === loginEmail);
+                if (isSuperAdmin) {
                     currentUser.role = 'admin';
                     currentUser.name = loginName || 'Administrador';
                     currentUser.loginType = loginType; // mantém o tipo de login escolhido
@@ -1864,6 +1865,49 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
 
+                    ` : ''}
+                    ${currentUser.loginType !== 'escolas-ibma' ? `
+                    <div class="view-header" style="margin-top: 32px; margin-bottom: 20px;">
+                        <h2>Acesso Rápido</h2>
+                    </div>
+                    <div class="overview-shortcuts-grid">
+                        <a href="#" class="overview-shortcut" data-view="users">
+                            <div class="overview-shortcut-icon"><i data-lucide="users"></i></div>
+                            <span class="overview-shortcut-label">Gestão de Usuários</span>
+                        </a>
+                        <a href="#" class="overview-shortcut" data-view="didatico">
+                            <div class="overview-shortcut-icon"><i data-lucide="book-open"></i></div>
+                            <span class="overview-shortcut-label">Didático</span>
+                        </a>
+                        <a href="#" class="overview-shortcut" data-view="enrollment">
+                            <div class="overview-shortcut-icon"><i data-lucide="user-plus"></i></div>
+                            <span class="overview-shortcut-label">Cadastro Geral</span>
+                        </a>
+                        <a href="#" class="overview-shortcut" data-view="classes">
+                            <div class="overview-shortcut-icon"><i data-lucide="clipboard-list"></i></div>
+                            <span class="overview-shortcut-label">Alunos</span>
+                        </a>
+                        <a href="https://drive.google.com/drive/folders/1bHiOrFojPoQOcaTerk23vi-y8jtKwTd5" target="_blank" rel="noopener noreferrer" class="overview-shortcut overview-shortcut-external">
+                            <div class="overview-shortcut-icon"><i data-lucide="image"></i></div>
+                            <span class="overview-shortcut-label">Fotos & Vídeos</span>
+                        </a>
+                        <a href="#" class="overview-shortcut" data-view="termo">
+                            <div class="overview-shortcut-icon"><i data-lucide="file-text"></i></div>
+                            <span class="overview-shortcut-label">Normas Sebitam</span>
+                        </a>
+                        <a href="#" class="overview-shortcut" data-view="mensalidades">
+                            <div class="overview-shortcut-icon"><i data-lucide="wallet"></i></div>
+                            <span class="overview-shortcut-label">Mensalidades</span>
+                        </a>
+                        <a href="#" class="overview-shortcut" data-view="matricula-escolas">
+                            <div class="overview-shortcut-icon"><i data-lucide="school"></i></div>
+                            <span class="overview-shortcut-label">Matrícula Escolas</span>
+                        </a>
+                        <a href="#" class="overview-shortcut" data-view="institucional">
+                            <div class="overview-shortcut-icon"><i data-lucide="building"></i></div>
+                            <span class="overview-shortcut-label">Institucional</span>
+                        </a>
+                    </div>
                     ` : ''}
                     ${currentUser.loginType === 'escolas-ibma' ? `
                     <div class="corpo-docente-header" style="margin-top: 40px; display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
@@ -3791,9 +3835,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const canDeleteChat = ['admin', 'teacher'].includes(currentUser.role);
 
                     let selectedTurmaChat = window.currentChatTurma || 1;
-                    if (!isTeacherChat && currentUser.grade) {
-                        selectedTurmaChat = currentUser.grade;
-                    }
+                    // Removida a trava que forçava a turma do aluno, agora todos podem navegar pelas 10 turmas
 
                     // Canal da conversa: 'sebitam-turma-1' ... 'ibma'
                     const canalChat = isSebitam
@@ -3882,13 +3924,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <span id="chat-status-badge" style="display:inline-flex; align-items:center; gap:5px; font-size:0.72rem; background:#fef9c3; color:#854d0e; border:1px solid #fde047; border-radius:20px; padding:2px 10px; font-weight:600;">
                                         <span style="width:7px;height:7px;border-radius:50%;background:#eab308;display:inline-block;"></span> Conectando...
                                     </span>
-                                    ${isSebitam && isTeacherChat ? `
+                                    ${isSebitam ? `
                                         <select id="chat-turma-selector" style="margin-left:auto; padding:5px 12px; border-radius:8px; border:1px solid var(--border); font-size:0.9rem; background:white; color:var(--text-main); font-family:inherit; cursor:pointer; box-shadow:var(--shadow-sm);">
                                             ${turmaOptions}
                                         </select>
-                                    ` : ''}
-                                    ${isSebitam && !isTeacherChat ? `
-                                        <span style="margin-left:auto; font-size:0.85rem; color:var(--text-muted); background:#e2e8f0; padding:3px 12px; border-radius:20px; font-weight:600;">Turma ${selectedTurmaChat}</span>
                                     ` : ''}
                                 </div>
                                 <p style="margin:4px 0 0; color:var(--text-muted); font-size:0.85rem;">
@@ -4126,8 +4165,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             };
                         }
 
-                        // ---- Troca de turma (professor/admin no SEBITAM) ----
-                        if (isSebitam && isTeacherChat) {
+                        // ---- Troca de turma (Todos no SEBITAM) ----
+                        if (isSebitam) {
                             const selectorEl = document.getElementById('chat-turma-selector');
                             if (selectorEl) {
                                 selectorEl.addEventListener('change', async (e) => {
