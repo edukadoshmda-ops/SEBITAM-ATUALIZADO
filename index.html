@@ -245,13 +245,6 @@
     </div>
     <script>function showInstallModal(){var m=document.getElementById('install-modal');if(m){m.style.display='flex';}}</script>
 
-    <!-- PWA Install Banner -->
-    <div id="pwa-install-banner"
-        style="display: none; position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: transparent; padding: 0; z-index: 9999; cursor: pointer; align-items: center; justify-content: center;">
-        <img src="logo-sebitam.png?v=10" alt="Instalar App SEBITAM" title="Instalar App SEBITAM"
-            style="width: 72px; height: 72px; object-fit: contain; display: block;">
-    </div>
-
     <!-- Supabase Configuration -->
     <script src="supabase-config.js"></script>
 
@@ -274,22 +267,14 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            const banner = document.getElementById('pwa-install-banner');
             const installBtn = document.getElementById('install-app-btn');
-            if (banner && !localStorage.getItem('pwa-install-dismissed')) {
-                banner.style.display = 'flex';
-                banner.onclick = () => {
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then(() => { banner.style.display = 'none'; localStorage.setItem('pwa-install-dismissed', '1'); });
-                };
-            }
             if (installBtn) {
                 installBtn.onclick = () => {
                     if (deferredPrompt) {
                         deferredPrompt.prompt();
                         deferredPrompt.userChoice.then(() => {});
-                    } else if (banner) {
-                        banner.style.display = 'flex';
+                    } else {
+                        showInstallModal();
                     }
                 };
             }
