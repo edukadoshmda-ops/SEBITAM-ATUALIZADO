@@ -10,9 +10,9 @@
     --text-main: #1e293b;
     --text-muted: #64748b;
     --border: #e2e8f0;
-    --sidebar-bg: #1e293b;
-    --sidebar-text: #f8fafc;
-    --sidebar-hover: #334155;
+    --sidebar-bg: #ffffff;
+    --sidebar-text: #1e293b;
+    --sidebar-hover: #f1f5f9;
 
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -31,7 +31,9 @@ body.theme-man {
     --text-main: #0f172a;
     --text-muted: #475569;
     --border: #cbd5e1;
-    --sidebar-bg: #0f172a;
+    --sidebar-bg: #ffffff;
+    --sidebar-text: #0f172a;
+    --sidebar-hover: #f1f5f9;
 }
 
 /* Theme: Mulher (Feminine Sophisticated) */
@@ -45,7 +47,9 @@ body.theme-woman {
     --text-main: #4c0519;
     --text-muted: #9f1239;
     --border: #fecdd3;
-    --sidebar-bg: #4c0519;
+    --sidebar-bg: #ffffff;
+    --sidebar-text: #4c0519;
+    --sidebar-hover: #fff1f2;
 }
 
 /* Theme: Elegant (Premium Gold/White) */
@@ -75,9 +79,9 @@ body.theme-nature {
     --text-main: #14532d;
     --text-muted: #166534;
     --border: #dcfce7;
-    --sidebar-bg: #14532d;
-    --sidebar-text: #f0fdf4;
-    --sidebar-hover: #166534;
+    --sidebar-bg: #ffffff;
+    --sidebar-text: #14532d;
+    --sidebar-hover: #f0fdf4;
 }
 
 /* Theme: Espiritual (White & Purple) */
@@ -91,9 +95,9 @@ body.theme-spiritual {
     --text-main: #3b0764;
     --text-muted: #6b21a8;
     --border: #f3e8ff;
-    --sidebar-bg: #3b0764;
-    --sidebar-text: #faf5ff;
-    --sidebar-hover: #581c87;
+    --sidebar-bg: #ffffff;
+    --sidebar-text: #3b0764;
+    --sidebar-hover: #faf5ff;
 }
 
 * {
@@ -524,17 +528,23 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--border);
 }
 
 .sidebar-logo,
 .sidebar-logo-img {
-    width: 44px;
-    height: 44px;
+    width: 58px;
+    height: 58px;
     object-fit: contain;
-    border-radius: 0;
-    background: transparent;
-    padding: 4px;
+    border-radius: 12px;
+    background: white;
+    padding: 6px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Logo: sem efeito de filtro na sidebar branca */
+.sidebar-logo-img {
+    filter: none;
 }
 
 .sidebar-logo-text {
@@ -592,7 +602,7 @@ body:not(.login-escolas-ibma) .nav-escolas-ibma-only {
 
 .sidebar-footer {
     padding: 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid var(--border);
 }
 
 .btn-logout {
@@ -2227,10 +2237,10 @@ body.user-role-student .delete-st-class {
 
 .logo-area {
     background: transparent;
-    width: 120px;
-    height: 100px;
-    margin: 0 auto 20px;
+    width: 180px;
+    height: 165px;
     padding: 0;
+    margin: 0 auto 20px;
     display: block;
 }
 
