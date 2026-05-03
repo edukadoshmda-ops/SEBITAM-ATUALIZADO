@@ -1,6 +1,418 @@
 document.addEventListener('DOMContentLoaded', () => {
     try {
         console.log("SEBITAM v5.3 Loaded");
+        
+        // Inicializar escolas IBMA no localStorage se não existirem
+        function initEscolasIbma() {
+            const defaultEscolas = [
+                { id: 'membresia', nome: 'Membresia', icon: 'user-check', url: 'https://drive.google.com/drive/folders/1YaUTtYRvjIOGILbRJZxlT-nVIA7OWRxe' },
+                { id: 'discipulado', nome: 'Discipulado', icon: 'users', url: null },
+                { id: 'batismo', nome: 'Batismo', icon: 'droplet', url: null },
+                { id: 'oracao', nome: 'Oração', icon: 'heart-handshake', url: null },
+                { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star', url: null }
+            ];
+            if (!localStorage.getItem('escolas-ibma-all')) {
+                localStorage.setItem('escolas-ibma-all', JSON.stringify(defaultEscolas));
+            }
+            return JSON.parse(localStorage.getItem('escolas-ibma-all'));
+        }
+        
+        // Função para gerar ícone automaticamente baseado no nome
+        function getIconByName(nome) {
+            const map = {
+                'membr': 'user-check',
+                'discip': 'users',
+                'batism': 'droplet',
+                'orac': 'heart-handshake',
+                'matur': 'star',
+                'evang': 'megaphone',
+                'escat': 'clock',
+                'bibl': 'book-open',
+                'teol': 'church',
+                'past': 'heart',
+                'miss': 'globe',
+                'lider': 'crown',
+                'jov': 'zap',
+                'crian': 'baby',
+                'mulh': 'user',
+                'hom': 'user',
+                'famil': 'home',
+                'casam': 'heart',
+                'saude': 'activity',
+                'financ': 'dollar-sign',
+                'music': 'music',
+                'ador': 'music',
+                'louv': 'mic',
+                'preg': 'mic',
+                'semin': 'graduation-cap',
+                'escol': 'school',
+                'curso': 'book',
+                'trein': 'target',
+                'confer': 'users',
+                'retir': 'mountain',
+                'camp': 'flame',
+                'socia': 'helping-hand',
+                'comun': 'users',
+                'volun': 'hand',
+                'dizim': 'wallet',
+                'ofert': 'gift',
+                'proj': 'briefcase',
+                'inic': 'rocket',
+                'cons': 'message-circle',
+                'acol': 'smile',
+                'rest': 'coffee',
+                'alim': 'utensils',
+                'roup': 'shirt',
+                'morad': 'home',
+                'transp': 'truck',
+                'viag': 'map',
+                'event': 'calendar',
+                'celebr': 'party-popper',
+                'fest': 'party-popper',
+                'conv': 'user-plus',
+                'batiz': 'droplet',
+                'santa': 'wine',
+                'ceia': 'wine',
+                'cult': 'sun',
+                'celul': 'grid',
+                'reuni': 'clock',
+                'estud': 'book-open',
+                'biblia': 'book',
+                'orac': 'hand',
+                'interc': 'message-square',
+                'jejum': 'moon',
+                'servic': 'wrench',
+                'minist': 'user-check',
+                'diacon': 'helping-hand',
+                'presb': 'users',
+                'apost': 'compass',
+                'profe': 'mic',
+                'evang': 'megaphone',
+                'misse': 'globe',
+                'pasto': 'heart',
+                'reitor': 'crown',
+                'diret': 'briefcase',
+                'coord': 'layers',
+                'secret': 'file-text',
+                'tesour': 'wallet',
+                'admin': 'settings',
+                'tec': 'cpu',
+                'midia': 'video',
+                'som': 'volume-2',
+                'ilum': 'lightbulb',
+                'decor': 'palette',
+                'limpe': 'sparkles',
+                'segur': 'shield',
+                'recep': 'bell',
+                'jardim': 'flower',
+                'manut': 'tool',
+                'constr': 'hard-hat',
+                'compr': 'shopping-cart',
+                'venda': 'tag',
+                'marc': 'trending-up',
+                'comun': 'radio',
+                'redes': 'share-2',
+                'web': 'globe',
+                'desig': 'pen-tool',
+                'foto': 'camera',
+                'film': 'film',
+                'edit': 'scissors',
+                'graf': 'printer',
+                'impre': 'printer',
+                'publi': 'file-text',
+                'prop': 'send',
+                'doc': 'file',
+                'plan': 'calendar',
+                'relat': 'bar-chart',
+                'cont': 'calculator',
+                'conta': 'calculator',
+                'fatur': 'receipt',
+                'nota': 'file-text',
+                'recib': 'file-text',
+                'contr': 'file-signature',
+                'cert': 'award',
+                'dipl': 'award',
+                'crach': 'credit-card',
+                'cart': 'credit-card',
+                'unif': 'shirt',
+                'mater': 'package',
+                'livro': 'book',
+                'cader': 'book',
+                'canet': 'pen',
+                'lapis': 'pencil',
+                'borra': 'eraser',
+                'regu': 'ruler',
+                'tesou': 'scissors',
+                'cola': 'paperclip',
+                'pape': 'file',
+                'envel': 'mail',
+                'etiqu': 'tag',
+                'caix': 'box',
+                'sacol': 'shopping-bag',
+                'embal': 'package',
+                'trans': 'truck',
+                'logis': 'truck',
+                'armaz': 'database',
+                'esto': 'package',
+                'inven': 'clipboard',
+                'pedid': 'shopping-cart',
+                'forne': 'truck',
+                'client': 'user',
+                'parce': 'handshake',
+                'colab': 'users',
+                'func': 'user',
+                'memb': 'user-check',
+                'visit': 'user-plus',
+                'novo': 'star',
+                'antig': 'history',
+                'jove': 'zap',
+                'adult': 'user',
+                'idos': 'heart',
+                'crian': 'baby',
+                'bebe': 'baby',
+                'adoles': 'smile',
+                'jovem': 'zap',
+                'homem': 'user',
+                'mulher': 'user',
+                'casal': 'heart',
+                'solte': 'user',
+                'noivo': 'heart',
+                'noiva': 'heart',
+                'marid': 'heart',
+                'espos': 'heart',
+                'pai': 'user',
+                'mae': 'user',
+                'filh': 'baby',
+                'irma': 'users',
+                'primo': 'users',
+                'tio': 'user',
+                'tia': 'user',
+                'avo': 'user',
+                'net': 'baby',
+                'sobrin': 'baby',
+                'cunha': 'users',
+                'sogro': 'user',
+                'sogra': 'user',
+                'genr': 'user',
+                'nora': 'user',
+                'amig': 'smile',
+                'conhe': 'user',
+                'vizin': 'home',
+                'coleg': 'users',
+                'chefe': 'crown',
+                'empre': 'briefcase',
+                'funci': 'user',
+                'volun': 'hand',
+                'doado': 'gift',
+                'benefi': 'heart',
+                'assist': 'helping-hand',
+                'pacien': 'heart',
+                'medico': 'activity',
+                'enferm': 'heart',
+                'prof': 'book-open',
+                'alun': 'user',
+                'estud': 'book-open',
+                'pesqui': 'search',
+                'cient': 'microscope',
+                'tecno': 'cpu',
+                'inform': 'monitor',
+                'comput': 'monitor',
+                'celul': 'smartphone',
+                'table': 'tablet',
+                'noteb': 'laptop',
+                'deskt': 'monitor',
+                'impre': 'printer',
+                'scann': 'scan',
+                'fax': 'phone',
+                'tel': 'phone',
+                'cel': 'smartphone',
+                'whats': 'message-circle',
+                'email': 'mail',
+                'corre': 'mail',
+                'carta': 'mail',
+                'mensag': 'message-square',
+                'chat': 'message-circle',
+                'foru': 'message-square',
+                'blog': 'file-text',
+                'site': 'globe',
+                'pagin': 'globe',
+                'link': 'link',
+                'url': 'link',
+                'domin': 'globe',
+                'hosped': 'server',
+                'servid': 'server',
+                'clou': 'cloud',
+                'nuvem': 'cloud',
+                'drive': 'hard-drive',
+                'pasta': 'folder',
+                'arquiv': 'file',
+                'docum': 'file-text',
+                'planil': 'table',
+                'apres': 'monitor',
+                'slide': 'monitor',
+                'foto': 'image',
+                'video': 'video',
+                'audio': 'music',
+                'musica': 'music',
+                'podca': 'mic',
+                'livro': 'book',
+                'ebook': 'tablet',
+                'pdf': 'file-text',
+                'docx': 'file-text',
+                'xlsx': 'table',
+                'pptx': 'monitor',
+                'jpg': 'image',
+                'png': 'image',
+                'gif': 'image',
+                'mp4': 'video',
+                'mp3': 'music',
+                'wav': 'music',
+                'zip': 'archive',
+                'rar': 'archive',
+                'exe': 'cpu',
+                'apk': 'smartphone',
+                'ios': 'smartphone',
+                'windo': 'monitor',
+                'linux': 'terminal',
+                'mac': 'monitor',
+                'android': 'smartphone',
+                'apple': 'smartphone',
+                'google': 'search',
+                'faceb': 'facebook',
+                'insta': 'instagram',
+                'twitt': 'twitter',
+                'youtu': 'youtube',
+                'tikto': 'music',
+                'linke': 'linkedin',
+                'whats': 'message-circle',
+                'teleg': 'send',
+                'discor': 'message-circle',
+                'slack': 'message-square',
+                'teams': 'users',
+                'zoom': 'video',
+                'meet': 'video',
+                'skype': 'video',
+                'webex': 'video',
+                'gotome': 'video',
+                'blueje': 'video',
+                'jitsi': 'video',
+                'bigblu': 'video',
+                'moodle': 'school',
+                'classr': 'school',
+                'teams': 'users',
+                'canvas': 'school',
+                'blackb': 'school',
+                'desire': 'school',
+                'd2l': 'school',
+                'moodle': 'school',
+                'edmod': 'school',
+                'schoo': 'school',
+                'google': 'search',
+                'micros': 'monitor',
+                'adobe': 'image',
+                'corel': 'image',
+                'canva': 'image',
+                'figma': 'pen-tool',
+                'sketch': 'pen-tool',
+                'invisi': 'pen-tool',
+                'axure': 'pen-tool',
+                'balsam': 'pen-tool',
+                'mockup': 'image',
+                'proto': 'rocket',
+                'wirefr': 'layout',
+                'storyb': 'film',
+                'userfl': 'user',
+                'person': 'user',
+                'jornad': 'map',
+                'mapa': 'map',
+                'fluxo': 'git-merge',
+                'diagr': 'pie-chart',
+                'grafic': 'bar-chart',
+                'tabel': 'table',
+                'list': 'list',
+                'check': 'check',
+                'checkl': 'check-square',
+                'formul': 'file-text',
+                'encues': 'help-circle',
+                'quiz': 'help-circle',
+                'teste': 'check',
+                'prova': 'file-text',
+                'exame': 'file-text',
+                'avalia': 'star',
+                'nota': 'star',
+                'concei': 'star',
+                'aprov': 'check',
+                'reprov': 'x',
+                'recup': 'refresh',
+                'recur': 'refresh',
+                'segund': 'refresh',
+                'chamad': 'user-check',
+                'falt': 'x',
+                'presen': 'check',
+                'atest': 'file-text',
+                'atesta': 'file-text',
+                'declar': 'file-text',
+                'requer': 'file-text',
+                'oficio': 'file-text',
+                'memo': 'file-text',
+                'circular': 'file-text',
+                'edital': 'file-text',
+                'portar': 'file-text',
+                'resolu': 'file-text',
+                'decret': 'file-text',
+                'lei': 'file-text',
+                'norma': 'file-text',
+                'regul': 'file-text',
+                'estatu': 'file-text',
+                'regime': 'file-text',
+                'polit': 'file-text',
+                'proced': 'file-text',
+                'instru': 'file-text',
+                'manual': 'book',
+                'gui': 'book',
+                'tutori': 'book',
+                'apostil': 'book',
+                'livro': 'book',
+                'revist': 'book',
+                'jornal': 'file-text',
+                'artig': 'file-text',
+                'tese': 'file-text',
+                'dsserta': 'file-text',
+                'monogr': 'file-text',
+                'relat': 'file-text',
+                'artigo': 'file-text',
+                'redac': 'file-text',
+                'dissert': 'file-text',
+                'monograf': 'file-text',
+                'relatori': 'file-text',
+                'artigoc': 'file-text',
+                'redaca': 'file-text',
+                'dissertac': 'file-text',
+                'monograf': 'file-text',
+                'relatori': 'file-text',
+                'artigocie': 'file-text',
+                'redacaod': 'file-text',
+                'dissertaca': 'file-text',
+                'monograf': 'file-text',
+                'relatorio': 'file-text',
+                'artigocient': 'file-text',
+                'redacaodiss': 'file-text',
+                'dissertacaom': 'file-text',
+                'monografiau': 'file-text',
+                'relatorioan': 'file-text',
+                'artigocientif': 'file-text',
+                'redacaodissert': 'file-text',
+                'dissertacaomest': 'file-text',
+                'monografiaunive': 'file-text',
+                'relatorioanual': 'file-text'
+            };
+            const lower = nome.toLowerCase().replace(/[^a-záàâãéèêíïóôõöúçñ]/g, '');
+            for (const key of Object.keys(map)) {
+                if (lower.includes(key)) return map[key];
+            }
+            return 'book-open';
+        }
+        
         // DOM Elements
         const loginForm = document.getElementById('login-form');
         const loginScreen = document.getElementById('login-screen');
@@ -2519,37 +2931,178 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
                 }
                 case 'modulos-ibma': {
-
-                    const modulosIbma = [
-                        { id: 'membresia', nome: 'Membresia', icon: 'user-check', url: 'https://drive.google.com/drive/folders/1YaUTtYRvjIOGILbRJZxlT-nVIA7OWRxe' },
-                        { id: 'discipulado', nome: 'Discipulado', icon: 'users', url: null },
-                        { id: 'batismo', nome: 'Batismo', icon: 'droplet', url: null },
-                        { id: 'oracao', nome: 'Oração', icon: 'heart-handshake', url: null },
-                        { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star', url: null }
-                    ];
+                    // Carregar todas as escolas do localStorage
+                    const modulosIbma = initEscolasIbma();
+                    
                     html = `
                     <div class="view-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
                         <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
                             <i data-lucide="layers" style="width: 30px; height: 30px;"></i>
                         </div>
                         <div>
-                            <h2 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--text-main);">Módulos Escola IBMA</h2>
-                            <p style="margin: 6px 0 0; font-size: 0.95rem; color: var(--text-muted);">Baixe o material de cada módulo</p>
+                            <h2 style="margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--text-main);">Escolas IBMA</h2>
+                            <p style="margin: 6px 0 0; font-size: 0.95rem; color: var(--text-muted);">Baixe o material de cada escola</p>
                         </div>
                     </div>
                     <div class="modules-download-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px;">
                         ${modulosIbma.map(m => `
-                        <div class="stat-card" style="height: auto; padding: 28px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center;">
+                        <div class="stat-card" style="height: auto; padding: 28px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; position: relative;">
+                            <div style="position: absolute; top: 12px; right: 12px; display: flex; gap: 8px;">
+                                <button onclick="editarEscola('${m.id}')" style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                                    <i data-lucide="edit-2" style="width: 16px; height: 16px; color: var(--text-muted);"></i>
+                                </button>
+                                <button onclick="excluirEscola('${m.id}')" style="background: white; border: 1px solid var(--border); border-radius: 8px; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.borderColor='#ef4444'" onmouseout="this.style.borderColor='var(--border)'">
+                                    <i data-lucide="trash-2" style="width: 16px; height: 16px; color: var(--text-muted);"></i>
+                                </button>
+                            </div>
                             <div style="width: 64px; height: 64px; border-radius: 18px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
                                 <i data-lucide="${m.icon}" style="width: 32px; height: 32px;"></i>
                             </div>
                             <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--text-main);">${m.nome}</h3>
-                            ${m.url ? `<a href="${m.url}" target="_blank" rel="noopener noreferrer" class="btn-primary" style="width: 100%; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 0.95rem;"><i data-lucide="download"></i> Baixar Material</a>` : `<span class="btn-primary" style="width: 100%; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.95rem; opacity: 0.7; cursor: default;"><i data-lucide="download"></i> Baixar Material</span>`}
+                            ${m.url ? `<a href="${m.url}" target="_blank" rel="noopener noreferrer" class="btn-primary" style="width: 100%; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-size: 0.95rem;"><i data-lucide="upload"></i></a>` : `<span class="btn-primary" style="width: 100%; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.95rem; opacity: 0.7; cursor: default;"><i data-lucide="upload"></i></span>`}
                         </div>
                         `).join('')}
+                        <!-- Cartão para criar nova escola -->
+                        <div class="stat-card" style="height: auto; padding: 28px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; cursor: pointer; border: 2px dashed var(--primary); background: rgba(var(--primary-rgb), 0.05);" onclick="abrirModalCriarEscola()">
+                            <div style="width: 64px; height: 64px; border-radius: 18px; background: rgba(var(--primary-rgb), 0.2); color: var(--primary); display: flex; align-items: center; justify-content: center;">
+                                <i data-lucide="plus" style="width: 32px; height: 32px;"></i>
+                            </div>
+                            <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--primary);">Criar Nova Escola</h3>
+                            <p style="margin: 0; font-size: 0.9rem; color: var(--text-muted);">Adicione um novo módulo</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Modal para criar nova escola -->
+                    <div id="modal-criar-escola" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                        <div style="background: white; padding: 40px; border-radius: 24px; max-width: 500px; width: 90%; box-shadow: var(--shadow-lg);">
+                            <h3 style="margin: 0 0 24px; font-size: 1.4rem; font-weight: 700; color: var(--text-main);">Criar Nova Escola</h3>
+                            <form id="form-criar-escola">
+                                <div style="margin-bottom: 20px;">
+                                    <label style="font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: block; font-size: 0.9rem;">Nome da Escola</label>
+                                    <input type="text" id="nova-escola-nome" placeholder="Ex: Evangelismo" required style="width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); background: white;">
+                                </div>
+                                <div style="margin-bottom: 20px;">
+                                    <label style="font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: block; font-size: 0.9rem;">Ícone (nome do ícone Lucide)</label>
+                                    <input type="text" id="nova-escola-icon" placeholder="Deixe vazio para automático" style="width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); background: white;">
+                                </div>
+                                <div style="margin-bottom: 24px;">
+                                    <label style="font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: block; font-size: 0.9rem;">URL do Material (opcional)</label>
+                                    <input type="url" id="nova-escola-url" placeholder="https://..." style="width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); background: white;">
+                                </div>
+                                <div style="display: flex; gap: 12px;">
+                                    <button type="button" onclick="fecharModalCriarEscola()" style="flex: 1; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); background: white; font-weight: 600; cursor: pointer;">Cancelar</button>
+                                    <button type="submit" class="btn-primary" style="flex: 1; padding: 14px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer;">Criar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Modal para editar escola -->
+                    <div id="modal-editar-escola" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                        <div style="background: white; padding: 40px; border-radius: 24px; max-width: 500px; width: 90%; box-shadow: var(--shadow-lg);">
+                            <h3 style="margin: 0 0 24px; font-size: 1.4rem; font-weight: 700; color: var(--text-main);">Editar Escola</h3>
+                            <form id="form-editar-escola">
+                                <input type="hidden" id="editar-escola-id">
+                                <div style="margin-bottom: 20px;">
+                                    <label style="font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: block; font-size: 0.9rem;">Nome da Escola</label>
+                                    <input type="text" id="editar-escola-nome" placeholder="Ex: Evangelismo" required style="width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); background: white;">
+                                </div>
+                                <div style="margin-bottom: 20px;">
+                                    <label style="font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: block; font-size: 0.9rem;">Ícone (nome do ícone Lucide)</label>
+                                    <input type="text" id="editar-escola-icon" placeholder="Deixe vazio para automático" style="width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); background: white;">
+                                </div>
+                                <div style="margin-bottom: 24px;">
+                                    <label style="font-weight: 700; color: var(--text-main); margin-bottom: 8px; display: block; font-size: 0.9rem;">URL do Material (opcional)</label>
+                                    <input type="url" id="editar-escola-url" placeholder="https://..." style="width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); background: white;">
+                                </div>
+                                <div style="display: flex; gap: 12px;">
+                                    <button type="button" onclick="fecharModalEditarEscola()" style="flex: 1; padding: 14px; border-radius: 12px; border: 1.5px solid var(--border); background: white; font-weight: 600; cursor: pointer;">Cancelar</button>
+                                    <button type="submit" class="btn-primary" style="flex: 1; padding: 14px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer;">Salvar</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 `;
                     setTimeout(() => lucide.createIcons(), 0);
+                    
+                    // Adicionar event listeners para o modal
+                    setTimeout(() => {
+                        window.abrirModalCriarEscola = function() {
+                            document.getElementById('modal-criar-escola').style.display = 'flex';
+                        };
+                        window.fecharModalCriarEscola = function() {
+                            document.getElementById('modal-criar-escola').style.display = 'none';
+                        };
+                        
+                        // Função para excluir escola
+                        window.excluirEscola = function(id) {
+                            if (confirm('Tem certeza que deseja excluir esta escola?')) {
+                                let escolasCustomizadas = JSON.parse(localStorage.getItem('escolas-ibma-all') || '[]');
+                                escolasCustomizadas = escolasCustomizadas.filter(e => e.id !== id);
+                                localStorage.setItem('escolas-ibma-all', JSON.stringify(escolasCustomizadas));
+                                renderView('modulos-ibma');
+                            }
+                        };
+                        
+                        // Função para editar escola
+                        window.editarEscola = function(id) {
+                            const escolasCustomizadas = JSON.parse(localStorage.getItem('escolas-ibma-all') || '[]');
+                            const escola = escolasCustomizadas.find(e => e.id === id);
+                            if (escola) {
+                                document.getElementById('editar-escola-id').value = escola.id;
+                                document.getElementById('editar-escola-nome').value = escola.nome;
+                                document.getElementById('editar-escola-icon').value = escola.icon;
+                                document.getElementById('editar-escola-url').value = escola.url || '';
+                                document.getElementById('modal-editar-escola').style.display = 'flex';
+                            }
+                        };
+                        
+                        window.fecharModalEditarEscola = function() {
+                            document.getElementById('modal-editar-escola').style.display = 'none';
+                        };
+                        
+                        document.getElementById('form-criar-escola').addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            const nome = document.getElementById('nova-escola-nome').value;
+                            const iconInput = document.getElementById('nova-escola-icon').value;
+                            const icon = iconInput || getIconByName(nome);
+                            const url = document.getElementById('nova-escola-url').value || null;
+                            
+                            const novaEscola = {
+                                id: 'custom_' + Date.now(),
+                                nome: nome,
+                                icon: icon,
+                                url: url
+                            };
+                            
+                            const escolasCustomizadas = JSON.parse(localStorage.getItem('escolas-ibma-all') || '[]');
+                            escolasCustomizadas.push(novaEscola);
+                            localStorage.setItem('escolas-ibma-all', JSON.stringify(escolasCustomizadas));
+                            
+                            fecharModalCriarEscola();
+                            renderView('modulos-ibma');
+                        });
+                        
+                        document.getElementById('form-editar-escola').addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            const id = document.getElementById('editar-escola-id').value;
+                            const nome = document.getElementById('editar-escola-nome').value;
+                            const iconInput = document.getElementById('editar-escola-icon').value;
+                            const icon = iconInput || getIconByName(nome);
+                            const url = document.getElementById('editar-escola-url').value || null;
+                            
+                            let escolasCustomizadas = JSON.parse(localStorage.getItem('escolas-ibma-all') || '[]');
+                            const index = escolasCustomizadas.findIndex(e => e.id === id);
+                            if (index !== -1) {
+                                escolasCustomizadas[index] = { id, nome, icon, url };
+                                localStorage.setItem('escolas-ibma-all', JSON.stringify(escolasCustomizadas));
+                            }
+                            
+                            fecharModalEditarEscola();
+                            renderView('modulos-ibma');
+                        });
+                    }, 100);
+                    
                     break;
                 }
                 case 'modulos-sebitam': {
@@ -2600,12 +3153,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 case 'matricula-escolas': {
                     const matriculas = safeLocalGet();
-                    const escolas = [
+                    const escolasFixas = [
                         { id: 'membresia', nome: 'Membresia', icon: 'user-check' },
                         { id: 'discipulos', nome: 'Discípulos', icon: 'users' },
                         { id: 'batismo', nome: 'Batismo', icon: 'droplet' },
                         { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star' }
                     ];
+                    const escolasCustomizadas = JSON.parse(localStorage.getItem('escolas-ibma-all') || '[]');
+                    const escolas = [...escolasFixas, ...escolasCustomizadas];
                     html = `
                     <div class="matricula-escolas-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
                         <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); display: flex; align-items: center; justify-content: center;">
