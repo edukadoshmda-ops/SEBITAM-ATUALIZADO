@@ -6,12 +6,16 @@ document.addEventListener('DOMContentLoaded', () => {
         function initEscolasIbma() {
             const defaultEscolas = [
                 { id: 'membresia', nome: 'Membresia', icon: 'user-check', url: 'https://drive.google.com/drive/folders/1YaUTtYRvjIOGILbRJZxlT-nVIA7OWRxe' },
-                { id: 'discipulado', nome: 'Discipulado', icon: 'users', url: null },
-                { id: 'batismo', nome: 'Batismo', icon: 'droplet', url: null },
-                { id: 'oracao', nome: 'Oração', icon: 'heart-handshake', url: null },
-                { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star', url: null }
+                { id: 'maturidade', nome: 'Modulo Visão da IBMA', icon: 'book-open', url: null },
+                { id: 'discipulado', nome: 'Modulo Discipulos', icon: 'users', url: null },
+                { id: 'oracao', nome: 'Modulo Fundamentos', icon: 'book-open', url: null },
+                { id: 'batismo', nome: 'Modulo Batismo nas Águas', icon: 'droplet', url: null }
             ];
-            if (!localStorage.getItem('escolas-ibma-all')) {
+            
+            const currentEscolas = localStorage.getItem('escolas-ibma-all');
+            const needsUpdate = !currentEscolas || currentEscolas.includes('"Discipulado"') || currentEscolas.includes('"Oração"');
+            
+            if (needsUpdate) {
                 localStorage.setItem('escolas-ibma-all', JSON.stringify(defaultEscolas));
             }
             return JSON.parse(localStorage.getItem('escolas-ibma-all'));
@@ -2218,20 +2222,20 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <span>Membresia</span>
                                     </label>
                                     <label class="modulo-option" style="cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
-                                        <input type="radio" name="escola" value="discipulado" style="display: none;">
-                                        <span>Discipulado</span>
+                                        <input type="radio" name="escola" value="maturidade" style="display: none;">
+                                        <span>Modulo Visão da IBMA</span>
                                     </label>
                                     <label class="modulo-option" style="cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
-                                        <input type="radio" name="escola" value="batismo" style="display: none;">
-                                        <span>Batismo</span>
+                                        <input type="radio" name="escola" value="discipulado" style="display: none;">
+                                        <span>Modulo Discipulos</span>
                                     </label>
                                     <label class="modulo-option" style="cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
                                         <input type="radio" name="escola" value="oracao" style="display: none;">
-                                        <span>Oração</span>
+                                        <span>Modulo Fundamentos</span>
                                     </label>
                                     <label class="modulo-option" style="cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 10px; display: flex; align-items: center; gap: 10px; transition: all 0.2s;">
-                                        <input type="radio" name="escola" value="maturidade" style="display: none;">
-                                        <span>Maturidade Cristã</span>
+                                        <input type="radio" name="escola" value="batismo" style="display: none;">
+                                        <span>Modulo Batismo nas Águas</span>
                                     </label>
                                 </div>
                             </div>
@@ -2243,7 +2247,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="stat-card" style="height: auto; padding: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
                             <div>
                                 <div style="font-weight: 600; font-size: 1rem; color: var(--text-main); margin-bottom: 8px;">${a.fullName || a.nome || '-'}</div>
-                                <div style="font-size: 0.85rem; color: var(--primary); margin-bottom: 4px;">Escola: ${({ membresia: 'Membresia', discipulado: 'Discipulado', batismo: 'Batismo', oracao: 'Oração', maturidade: 'Maturidade Cristã' }[a.escola || a.modulo] || '-')}</div>
+                                <div style="font-size: 0.85rem; color: var(--primary); margin-bottom: 4px;">Escola: ${({ membresia: 'Membresia', discipulado: 'Modulo Discipulos', batismo: 'Modulo Batismo nas Águas', oracao: 'Modulo Fundamentos', maturidade: 'Modulo Visão da IBMA' }[a.escola || a.modulo] || '-')}</div>
                                 <div style="font-size: 0.9rem; color: var(--primary); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;"><i data-lucide="phone" style="width: 14px; height: 14px;"></i> ${a.phone || '-'}</div>
                                 <div style="font-size: 0.9rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;"><i data-lucide="mail" style="width: 14px; height: 14px;"></i> ${a.email || '-'}</div>
                             </div>
@@ -2529,7 +2533,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
                 case 'alunos-ibma': {
                     let alunosIbmaList = safeLocalGet();
-                    const escolaLabels = { membresia: 'Membresia', discipulado: 'Discipulado', batismo: 'Batismo', oracao: 'Oração', maturidade: 'Maturidade Cristã' };
+                    const escolaLabels = { membresia: 'Membresia', discipulado: 'Modulo Discipulos', batismo: 'Modulo Batismo nas Águas', oracao: 'Modulo Fundamentos', maturidade: 'Modulo Visão da IBMA' };
 
                     const printBoletim = (aluno) => {
                         const escolaNome = escolaLabels[aluno.escola || aluno.modulo] || '-';
@@ -3155,9 +3159,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const matriculas = safeLocalGet();
                     const escolasFixas = [
                         { id: 'membresia', nome: 'Membresia', icon: 'user-check' },
-                        { id: 'discipulos', nome: 'Discípulos', icon: 'users' },
-                        { id: 'batismo', nome: 'Batismo', icon: 'droplet' },
-                        { id: 'maturidade', nome: 'Maturidade Cristã', icon: 'star' }
+                        { id: 'maturidade', nome: 'Modulo Visão da IBMA', icon: 'book-open' },
+                        { id: 'discipulado', nome: 'Modulo Discipulos', icon: 'users' },
+                        { id: 'oracao', nome: 'Modulo Fundamentos', icon: 'book-open' },
+                        { id: 'batismo', nome: 'Modulo Batismo nas Águas', icon: 'droplet' }
                     ];
                     const escolasCustomizadas = JSON.parse(localStorage.getItem('escolas-ibma-all') || '[]');
                     const escolas = [...escolasFixas, ...escolasCustomizadas];
