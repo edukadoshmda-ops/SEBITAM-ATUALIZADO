@@ -6,14 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
         function initEscolasIbma() {
             const defaultEscolas = [
                 { id: 'membresia', nome: 'Membresia', icon: 'user-check', url: 'https://drive.google.com/drive/folders/1YaUTtYRvjIOGILbRJZxlT-nVIA7OWRxe' },
-                { id: 'maturidade', nome: 'Modulo Visão da IBMA', icon: 'book-open', url: null },
-                { id: 'discipulado', nome: 'Modulo Discipulos', icon: 'users', url: null },
-                { id: 'oracao', nome: 'Modulo Fundamentos', icon: 'book-open', url: null },
-                { id: 'batismo', nome: 'Modulo Batismo nas Águas', icon: 'droplet', url: null }
+                { id: 'maturidade', nome: 'Modulo Visão da IBMA', icon: 'book-open', url: 'https://drive.google.com/drive/u/1/folders/1w0tc4fEMJhPn2cVzwc8xuXppaFziqIFI' },
+                { id: 'discipulado', nome: 'Modulo Discipulos', icon: 'users', url: 'https://drive.google.com/drive/u/1/folders/1xwG6FIXIxQQSak9Ye2onb8UqF7kXHB2d' },
+                { id: 'oracao', nome: 'Modulo Fundamentos', icon: 'book-open', url: 'https://drive.google.com/drive/u/1/folders/1eXOe48fB8nA8q0QFzSqldi672XLlqJSr' },
+                { id: 'batismo', nome: 'Modulo Batismo nas Águas', icon: 'droplet', url: 'https://drive.google.com/drive/u/1/folders/1KnAthrXLfutKy6k93bFMESwoW7Js-mLd' }
             ];
             
             const currentEscolas = localStorage.getItem('escolas-ibma-all');
-            const needsUpdate = !currentEscolas || currentEscolas.includes('"Discipulado"') || currentEscolas.includes('"Oração"');
+            const needsUpdate = !currentEscolas || currentEscolas.includes('null') || currentEscolas.includes('"Discipulado"');
             
             if (needsUpdate) {
                 localStorage.setItem('escolas-ibma-all', JSON.stringify(defaultEscolas));
